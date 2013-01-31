@@ -1,4 +1,4 @@
 MapReduce-assignments
 =====================
 
-Repo for CMSC 828G - MapReducing Computing course
+Repo for assignments in CMSC 828G - MapReducing Computing

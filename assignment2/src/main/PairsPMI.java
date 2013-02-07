@@ -19,6 +19,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -31,7 +32,7 @@ public class PairsPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
 
     // Mapper: emits (token, 1) for every word occurrence.
-    private static class MyMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+    private static class MyMapper1 extends Mapper<LongWritable, Text, Text, IntWritable> {
 
         // Reuse objects to save overhead of object creation.
         private final static IntWritable ONE = new IntWritable(1);
@@ -48,9 +49,9 @@ public class PairsPMI extends Configured implements Tool {
             }
         }
     }
-
+    
     // Reducer: sums up all the counts.
-    private static class MyReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+    private static class MyReducer1 extends Reducer<Text, IntWritable, Text, IntWritable> {
 
         // Reuse objects.
         private final static IntWritable SUM = new IntWritable();
@@ -68,7 +69,60 @@ public class PairsPMI extends Configured implements Tool {
             context.write(key, SUM);
         }
     }
+    
+    
+    
+ // Mapper: emits (token, 1) for every word occurrence.
+    private static class MyMapper2 extends Mapper<LongWritable, Text, Text, IntWritable> {
+        // Reuse objects to save overhead of object creation.
+        private final static IntWritable ONE = new IntWritable(1);
+        private final static Text BIGRAM = new Text();
 
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            String line = ((Text) value).toString();
+            StringTokenizer itr1 = new StringTokenizer(line);
+            StringTokenizer itr2 = new StringTokenizer(line);
+            // start second iterator on second word in line
+            if (itr2.hasMoreTokens())
+                itr2.nextToken();
+            
+            String bigram;
+            
+            while (itr1.hasMoreTokens()) {
+                bigram = itr1.nextToken();
+                if (itr2.hasMoreTokens()) {
+                    bigram += "_" + itr2.nextToken();
+                    
+                    BIGRAM.set(bigram);
+                    context.write(BIGRAM, ONE);
+                }
+            }
+        }
+    }
+
+    // Reducer: sums up all the counts.
+    private static class MyReducer2 extends Reducer<Text, IntWritable, Text, IntWritable> {
+        // Reuse objects.
+        private final static IntWritable SUM = new IntWritable();
+
+        @Override
+        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+            // Sum up values.
+            Iterator<IntWritable> iter = values.iterator();
+            int sum = 0;
+            while (iter.hasNext()) {
+                sum += iter.next().get();
+            }
+            SUM.set(sum);
+            context.write(key, SUM);
+        }
+    }
+    
+    
+    
+    
+    
     /**
      * Creates an instance of this tool.
      */
@@ -136,9 +190,9 @@ public class PairsPMI extends Configured implements Tool {
         job1.setOutputKeyClass(Text.class);
         job1.setOutputValueClass(IntWritable.class);
 
-        job1.setMapperClass(MyMapper.class);
-        job1.setCombinerClass(MyReducer.class);
-        job1.setReducerClass(MyReducer.class);
+        job1.setMapperClass(MyMapper1.class);
+        job1.setCombinerClass(MyReducer1.class);
+        job1.setReducerClass(MyReducer1.class);
         
         
         //#################################################################################
@@ -156,9 +210,9 @@ public class PairsPMI extends Configured implements Tool {
         job2.setOutputKeyClass(Text.class);
         job2.setOutputValueClass(IntWritable.class);
 
-        job2.setMapperClass(MyMapper.class);
-        job2.setCombinerClass(MyReducer.class);
-        job2.setReducerClass(MyReducer.class);
+        job2.setMapperClass(MyMapper2.class);
+        job2.setCombinerClass(MyReducer2.class);
+        job2.setReducerClass(MyReducer2.class);
         //#################################################################################
         
         

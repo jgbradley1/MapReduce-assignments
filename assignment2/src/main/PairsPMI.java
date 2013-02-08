@@ -47,6 +47,7 @@ public class PairsPMI extends Configured implements Tool {
                 WORD.set(itr.nextToken());
                 context.write(WORD, ONE);
             }
+            System.out.println("Mapper 1 ------");
         }
     }
     
@@ -67,6 +68,7 @@ public class PairsPMI extends Configured implements Tool {
             }
             SUM.set(sum);
             context.write(key, SUM);
+            System.out.println("Reducer 1 ------");
         }
     }
     
@@ -98,6 +100,7 @@ public class PairsPMI extends Configured implements Tool {
                     context.write(BIGRAM, ONE);
                 }
             }
+            System.out.println("Mapper 2 ------");
         }
     }
 
@@ -116,6 +119,7 @@ public class PairsPMI extends Configured implements Tool {
             }
             SUM.set(sum);
             context.write(key, SUM);
+            System.out.println("Reducer 2 ------");
         }
     }
     

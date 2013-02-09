@@ -36,11 +36,10 @@ public class PairsPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
     
     // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
-    private static class MyMapper1 extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
+    private static class MyMapper extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
 
         // Reuse objects to save overhead of object creation.
         private final static IntWritable ONE = new IntWritable(1);
-        private final static Text WORD = new Text();
         private static final PairOfStrings PAIR = new PairOfStrings();
         
         @Override
@@ -101,10 +100,11 @@ public class PairsPMI extends Configured implements Tool {
     }
     
     // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
-    private static class MyReducer1 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
+    private static class MyReducer extends Reducer<PairOfStrings, IntWritable, PairOfStrings, FloatWritable> {
 
         // Reuse objects.
-        private final static IntWritable SUM = new IntWritable();
+        //private final static IntWritable SUM = new IntWritable();
+        private final static FloatWritable PROB = new FloatWritable();
 
         @Override
         public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
@@ -112,19 +112,22 @@ public class PairsPMI extends Configured implements Tool {
             
             // Sum up values.
             Iterator<IntWritable> iter = values.iterator();
-            int sum = 0;
+            int freqCount = 0;
+            float ratio;
             while (iter.hasNext()) {
-                sum += iter.next().get();
+                freqCount += iter.next().get();
             }
             
             if (key.getRightElement().equals("*")) {
-                SUM.set(sum);
-                context.write(key, SUM);
+                ratio = freqCount/156215.0f;
+                PROB.set(ratio);
+                context.write(key, PROB); // freq/156215
             }
             else {
-                if (sum >= 10) {
-                    SUM.set(sum);
-                    context.write(key,  SUM);
+                if (freqCount >= 10) {
+                    ratio = freqCount/156215.0f;
+                    PROB.set(ratio);
+                    context.write(key, PROB); // freq/156215
                 }
             }
         }
@@ -136,65 +139,6 @@ public class PairsPMI extends Configured implements Tool {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
- // Mapper: emits (token, 1) for every word occurrence.
-    private static class MyMapper2 extends Mapper<LongWritable, Text, Text, IntWritable> {
-        // Reuse objects to save overhead of object creation.
-        private final static IntWritable ONE = new IntWritable(1);
-        private final static Text BIGRAM = new Text();
-
-        @Override
-        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            String line = ((Text) value).toString();
-            StringTokenizer itr1 = new StringTokenizer(line);
-            StringTokenizer itr2 = new StringTokenizer(line);
-            // start second iterator on second word in line
-            if (itr2.hasMoreTokens())
-                itr2.nextToken();
-            
-            String bigram;
-            
-            while (itr1.hasMoreTokens()) {
-                bigram = itr1.nextToken();
-                if (itr2.hasMoreTokens()) {
-                    bigram += "_" + itr2.nextToken();
-                    
-                    BIGRAM.set(bigram);
-                    context.write(BIGRAM, ONE);
-                }
-            }
-        }
-    }
-
-    // Reducer: sums up all the counts.
-    private static class MyReducer2 extends Reducer<Text, IntWritable, Text, IntWritable> {
-        // Reuse objects.
-        private final static IntWritable SUM = new IntWritable();
-
-        @Override
-        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-            // Sum up values.
-            Iterator<IntWritable> iter = values.iterator();
-            int sum = 0;
-            while (iter.hasNext()) {
-                sum += iter.next().get();
-            }
-            SUM.set(sum);
-            context.write(key, SUM);
-        }
-    }
-    
-    
-    
     
     
     /**
@@ -261,12 +205,13 @@ public class PairsPMI extends Configured implements Tool {
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
         
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
+        job.setOutputKeyClass(PairOfStrings.class);
+        job.setOutputValueClass(FloatWritable.class);
 
-        job.setMapperClass(MyMapper1.class);
-        job.setCombinerClass(MyReducer1.class);
-        job.setReducerClass(MyReducer1.class);
+        job.setMapperClass(MyMapper.class);
+        //job.setCombinerClass(MyReducer.class);
+        job.setPartitionerClass(MyPartitioner.class);
+        job.setReducerClass(MyReducer.class);
         
         /*
         //#################################################################################

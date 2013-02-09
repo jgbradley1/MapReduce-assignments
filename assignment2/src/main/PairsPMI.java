@@ -14,11 +14,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -28,42 +30,68 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
 import cern.colt.Arrays;
+import edu.umd.cloud9.io.pair.PairOfStrings;
 
 public class PairsPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
     
-    
-    
-    
-    
-    
-
     // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
-    private static class MyMapper1 extends Mapper<LongWritable, Text, Text, IntWritable> {
+    private static class MyMapper1 extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
 
         // Reuse objects to save overhead of object creation.
         private final static IntWritable ONE = new IntWritable(1);
         private final static Text WORD = new Text();
+        private static final PairOfStrings PAIR = new PairOfStrings();
         
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
             
-            String line = ((Text) value).toString();
-            StringTokenizer itr = new StringTokenizer(line);
-            
             // each mapper must have it's own copy of docWords since docWords only maintains information about 1 doc at a time
             HashMap<String, Integer> docWords = new HashMap<String, Integer>();
-            String word;
             
-            while (itr.hasMoreTokens()) {
-                word = itr.nextToken();
-                if (!docWords.containsKey(word)) {
-                    docWords.put(word,  1);
-                    
-                    WORD.set(word);
-                    context.write(WORD, ONE);
+            String text = value.toString();
+            String[] terms = text.split("\\s+");
+            
+            // Clean out all duplicate words in the document
+            for (int i = 0; i < terms.length; i++) {
+                String term = terms[i];
+
+                // skip empty tokens
+                if (term.length() == 0)
+                    continue;
+                
+                if (!docWords.containsKey(term)) {
+                    docWords.put(term, 1);
                 }
+                else {
+                    terms[i] = "";
+                }
+            }
+            
+            // Emit word counts and bigram counts
+            for (int i = 0; i < terms.length; i++) {
+                String term = terms[i];
+                
+                // skip empty tokens
+                if (term.length() == 0)
+                    continue;
+                
+                // This will count P(X)
+                PAIR.set(term, "*");
+                context.write(PAIR, ONE);
+                
+                for (int j = i+1; j < terms.length; j++) {
+
+                    // skip empty tokens
+                    if (terms[j].length() == 0)
+                        continue;
+                    
+                    // This will count P(X, Y)
+                    PAIR.set(term, terms[j]);
+                    context.write(PAIR, ONE);
+                }
+                
             }
             
             // Clean out entire hashmap
@@ -73,27 +101,41 @@ public class PairsPMI extends Configured implements Tool {
     }
     
     // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
-    private static class MyReducer1 extends Reducer<Text, IntWritable, Text, IntWritable> {
+    private static class MyReducer1 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
 
         // Reuse objects.
         private final static IntWritable SUM = new IntWritable();
 
         @Override
-        public void reduce(Text key, Iterable<IntWritable> values, Context context)
+        public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
                 throws IOException, InterruptedException {
+            
             // Sum up values.
             Iterator<IntWritable> iter = values.iterator();
             int sum = 0;
             while (iter.hasNext()) {
                 sum += iter.next().get();
             }
-            SUM.set(sum);
-            context.write(key, SUM);
+            
+            if (key.getRightElement().equals("*")) {
+                SUM.set(sum);
+                context.write(key, SUM);
+            }
+            else {
+                if (sum >= 10) {
+                    SUM.set(sum);
+                    context.write(key,  SUM);
+                }
+            }
         }
     }
     
-    
-    
+    protected static class MyPartitioner extends Partitioner<PairOfStrings, IntWritable> {
+        @Override
+        public int getPartition(PairOfStrings key, IntWritable value, int numReduceTasks) {
+            return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
+        }
+    }
     
     
     
@@ -218,7 +260,7 @@ public class PairsPMI extends Configured implements Tool {
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
-
+        
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
 

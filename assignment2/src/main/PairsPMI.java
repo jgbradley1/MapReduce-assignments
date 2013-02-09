@@ -1,6 +1,10 @@
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.StringTokenizer;
 
 import org.apache.commons.cli.CommandLine;
@@ -45,9 +49,10 @@ public class PairsPMI extends Configured implements Tool {
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-
+            
             // each mapper must have it's own copy of docWords since docWords only maintains information about 1 doc at a time
             HashMap<String, Integer> docWords = new HashMap<String, Integer>();
+            List<String> pair = new ArrayList<String>(2);
 
             String text = value.toString();
             String[] terms = text.split("\\s+");
@@ -85,10 +90,16 @@ public class PairsPMI extends Configured implements Tool {
                     // skip empty tokens
                     if (terms[j].length() == 0)
                         continue;
-
+                    
+                    pair.add(term);
+                    pair.add(terms[j]);
+                    
+                    Collections.sort(pair);
+                    
                     // This will count P(X, Y)
-                    PAIR.set(term, terms[j]);
+                    PAIR.set(pair.get(0), pair.get(1));
                     context.write(PAIR, ONE);
+                    pair.clear();
                 }
 
             }

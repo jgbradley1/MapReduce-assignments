@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
@@ -30,28 +31,48 @@ import cern.colt.Arrays;
 
 public class PairsPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
+    
+    
+    
+    
+    
+    
 
-    // Mapper: emits (token, 1) for every word occurrence.
+    // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
     private static class MyMapper1 extends Mapper<LongWritable, Text, Text, IntWritable> {
 
         // Reuse objects to save overhead of object creation.
         private final static IntWritable ONE = new IntWritable(1);
         private final static Text WORD = new Text();
-
+        
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
+            
             String line = ((Text) value).toString();
             StringTokenizer itr = new StringTokenizer(line);
+            
+            // each mapper must have it's own copy of docWords since docWords only maintains information about 1 doc at a time
+            HashMap<String, Integer> docWords = new HashMap<String, Integer>();
+            String word;
+            
             while (itr.hasMoreTokens()) {
-                WORD.set(itr.nextToken());
-                context.write(WORD, ONE);
+                word = itr.nextToken();
+                if (!docWords.containsKey(word)) {
+                    docWords.put(word,  1);
+                    
+                    WORD.set(word);
+                    context.write(WORD, ONE);
+                }
             }
-            System.out.println("Mapper 1 ------");
+            
+            // Clean out entire hashmap
+            docWords.clear();
+            
         }
     }
     
-    // Reducer: sums up all the counts.
+    // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
     private static class MyReducer1 extends Reducer<Text, IntWritable, Text, IntWritable> {
 
         // Reuse objects.
@@ -68,9 +89,18 @@ public class PairsPMI extends Configured implements Tool {
             }
             SUM.set(sum);
             context.write(key, SUM);
-            System.out.println("Reducer 1 ------");
         }
     }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
@@ -100,7 +130,6 @@ public class PairsPMI extends Configured implements Tool {
                     context.write(BIGRAM, ONE);
                 }
             }
-            System.out.println("Mapper 2 ------");
         }
     }
 
@@ -119,7 +148,6 @@ public class PairsPMI extends Configured implements Tool {
             }
             SUM.set(sum);
             context.write(key, SUM);
-            System.out.println("Reducer 2 ------");
         }
     }
     
@@ -181,24 +209,24 @@ public class PairsPMI extends Configured implements Tool {
         
         //#################################################################################
         // Job 1 Configuration
-        Configuration conf1 = getConf();
-        Job job1 = Job.getInstance(conf1);
-        job1.setJobName(PairsPMI.class.getSimpleName());
-        job1.setJarByClass(PairsPMI.class);
+        Configuration conf = getConf();
+        Job job = Job.getInstance(conf);
+        job.setJobName(PairsPMI.class.getSimpleName());
+        job.setJarByClass(PairsPMI.class);
 
-        job1.setNumReduceTasks(reduceTasks);
+        job.setNumReduceTasks(reduceTasks);
 
-        FileInputFormat.setInputPaths(job1, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job1, new Path("temp"));
+        FileInputFormat.setInputPaths(job, new Path(inputPath));
+        FileOutputFormat.setOutputPath(job, new Path(outputPath));
 
-        job1.setOutputKeyClass(Text.class);
-        job1.setOutputValueClass(IntWritable.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
 
-        job1.setMapperClass(MyMapper1.class);
-        job1.setCombinerClass(MyReducer1.class);
-        job1.setReducerClass(MyReducer1.class);
+        job.setMapperClass(MyMapper1.class);
+        job.setCombinerClass(MyReducer1.class);
+        job.setReducerClass(MyReducer1.class);
         
-        
+        /*
         //#################################################################################
         // Job 2 Configuration
         Configuration conf2 = getConf();
@@ -218,20 +246,18 @@ public class PairsPMI extends Configured implements Tool {
         job2.setCombinerClass(MyReducer2.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################
-        
+        */
         
         // Delete the output directories if they exists already.
-        Path outputDir = new Path("temp");
-        FileSystem.get(conf1).delete(outputDir, true);
-        
-        outputDir = new Path(outputPath);
-        FileSystem.get(conf2).delete(outputDir, true);
+        Path outputDir = new Path(outputPath);
+        FileSystem.get(conf).delete(outputDir, true);
         
         
 
         long startTime = System.currentTimeMillis();
-        if (job1.waitForCompletion(true)) {
-            LOG.info("Job #1 Finished");
+        if (job.waitForCompletion(true)) {
+            LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+            /*
             if (job2.waitForCompletion(true)) {
                 LOG.info("Job #2 Finished");
                 LOG.info("Job (#1 and #2) Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
@@ -239,6 +265,7 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 LOG.info("ERROR - Job #2 did not finish");
             }
+            */
         }
         else {
             LOG.info("ERROR - Job #1 did not finish");

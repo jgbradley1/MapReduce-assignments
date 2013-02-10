@@ -260,6 +260,7 @@ public class PairsPMI extends Configured implements Tool {
 
                             float pmi = Float.parseFloat(bigram_value[1]);
                             pmi *= 1/p_y;
+                            pmi = (float)Math.log(pmi);
                             VALUE.set(pmi);
                             
 
@@ -358,6 +359,8 @@ public class PairsPMI extends Configured implements Tool {
         FileInputFormat.setInputPaths(job2, new Path("temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
 
+        job2.setMapOutputKeyClass(PairOfStrings.class);
+        job2.setMapOutputValueClass(Text.class);
         job2.setOutputKeyClass(PairOfStrings.class);
         job2.setOutputValueClass(FloatWritable.class);
 
@@ -374,7 +377,7 @@ public class PairsPMI extends Configured implements Tool {
         outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
 
-
+        
         long startTime = System.currentTimeMillis();
         if (job.waitForCompletion(true)) {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");

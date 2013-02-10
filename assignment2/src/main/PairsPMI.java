@@ -199,8 +199,6 @@ public class PairsPMI extends Configured implements Tool {
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
             
-            System.out.println("Map2 INPUT KEY: " + key);
-            System.out.println("Map2 INPUT VALUE: " + value);
             PairOfStrings keyy = new PairOfStrings();
             
             String[] val = value.toString().split("\\t");
@@ -267,7 +265,7 @@ public class PairsPMI extends Configured implements Tool {
                         }
                     }
                 }
-            }
+            //}
             catch (NumberFormatException e) {}
         }
     }

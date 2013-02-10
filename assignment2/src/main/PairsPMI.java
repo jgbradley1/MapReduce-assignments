@@ -130,7 +130,7 @@ public class PairsPMI extends Configured implements Tool {
             while (iter.hasNext()) {
                 sum += iter.next().get();
             }
-            
+
             // emit final count of all (x, *) pairs
             if (key.getRightElement().equals("*")) {
                 marginal = sum;
@@ -139,7 +139,7 @@ public class PairsPMI extends Configured implements Tool {
             }
             else {
                 // emit P(x,y)/P(x) for each (x, y) pair
-                
+
                 if (sum >= 10) {
                     float p_x = marginal/156215.0f;
                     float p_xy = sum/156215.0f;
@@ -225,7 +225,7 @@ public class PairsPMI extends Configured implements Tool {
         private static final PairOfStrings KEY = new PairOfStrings();
         private static final FloatWritable VALUE = new FloatWritable();
         private static float p_y = 0.0f;
-        
+
         @Override
         public void reduce(PairOfStrings key, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
@@ -233,38 +233,33 @@ public class PairsPMI extends Configured implements Tool {
 
             Iterator<Text> iter = values.iterator();
             try {
-                // multiply each (x,y) pair by 1/p_y
                 while (iter.hasNext()) {
+                    // multiply each (x,y) pair by 1/p_y
                     if (key.getRightElement().equals("*")) {
                         p_y = Float.parseFloat(iter.next().toString())/156215.0f;
                     }
-                    else {
-                        
+                    else {  
                         String[] bigram_value = iter.next().toString().split("-");
                         if (bigram_value.length == 2) {
                             String bigramPair = bigram_value[0];
-                            
+
                             String left = bigramPair.substring(1, bigramPair.indexOf(" ")-1);
                             String right = bigramPair.substring(bigramPair.indexOf(" ") + 1, bigramPair.length()-1);
                             KEY.set(left, right);
-                            
+
                             float pmi = Float.parseFloat(bigram_value[1]);
                             pmi *= 1/p_y;
                             VALUE.set(pmi);
-                            
-                            
+
+
                             context.write(KEY, VALUE);
                         }
                     }
                 }
             }
-            catch (NumberFormatException e) {
-
-            }
+            catch (NumberFormatException e) {}
         }
     }
-
-
 
 
     /**
@@ -338,7 +333,7 @@ public class PairsPMI extends Configured implements Tool {
         //job.setCombinerClass(MyCombiner.class);
         job.setPartitionerClass(MyPartitioner.class);
         job.setReducerClass(MyReducer.class);
-
+        
 
         //#################################################################################
         // Job 2 Configuration
@@ -354,18 +349,17 @@ public class PairsPMI extends Configured implements Tool {
 
         job2.setOutputKeyClass(PairOfStrings.class);
         job2.setOutputValueClass(FloatWritable.class);
-        
+
         job2.setMapperClass(MyMapper2.class);
         //job2.setCombinerClass(MyReducer2.class);
         job2.setPartitionerClass(MyPartitioner.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################
-
-
+        
         // Delete the output directories if they exists already.
         Path outputDir = new Path("temp");
         FileSystem.get(conf).delete(outputDir, true);
-        
+
         outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
 
@@ -374,7 +368,7 @@ public class PairsPMI extends Configured implements Tool {
         long startTime = System.currentTimeMillis();
         if (job.waitForCompletion(true)) {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
-            /*
+            
             if (job2.waitForCompletion(true)) {
                 LOG.info("Job #2 Finished");
                 LOG.info("Job (#1 and #2) Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
@@ -382,12 +376,11 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 LOG.info("ERROR - Job #2 did not finish");
             }
-             */
         }
         else {
             LOG.info("ERROR - Job #1 did not finish");
         }
-
+        
         return 0;
     }
 

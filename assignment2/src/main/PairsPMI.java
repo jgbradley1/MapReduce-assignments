@@ -262,7 +262,6 @@ public class PairsPMI extends Configured implements Tool {
                             pmi *= 1/p_y;
                             pmi = (float)Math.log(pmi);
                             VALUE.set(pmi);
-                            
 
                             context.write(KEY, VALUE);
                         }

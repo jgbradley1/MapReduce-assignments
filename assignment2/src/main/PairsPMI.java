@@ -265,7 +265,7 @@ public class PairsPMI extends Configured implements Tool {
                         }
                     }
                 }
-            //}
+            }
             catch (NumberFormatException e) {}
         }
     }

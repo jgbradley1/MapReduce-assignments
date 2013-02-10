@@ -318,7 +318,7 @@ public class PairsPMI extends Configured implements Tool {
         LOG.info(" - input path: " + inputPath);
         LOG.info(" - output path: " + outputPath);
         LOG.info(" - number of reducers: " + reduceTasks);
-
+        
         //#################################################################################
         // Job 1 Configuration
         Configuration conf = getConf();

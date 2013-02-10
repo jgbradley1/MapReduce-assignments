@@ -189,30 +189,41 @@ public class PairsPMI extends Configured implements Tool {
 
 
     // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
-    private static class MyMapper2 extends Mapper<PairOfStrings, FloatWritable, PairOfStrings, Text> {
+    private static class MyMapper2 extends Mapper<LongWritable, Text, PairOfStrings, Text> {
 
         // Reuse objects to save overhead of object creation.
         private static final PairOfStrings KEY = new PairOfStrings();
         private static final Text VALUE = new Text();
 
         @Override
-        public void map(PairOfStrings key, FloatWritable value, Context context)
+        public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-
-            if (key.getRightElement().equals("*")) {
+            
+            System.out.println("Map2 INPUT KEY: " + key);
+            System.out.println("Map2 INPUT VALUE: " + value);
+            PairOfStrings keyy = new PairOfStrings();
+            
+            String[] val = value.toString().split("\\t");
+            
+            String left = val[0].substring(1, val[0].indexOf(','));
+            String right = val[0].substring(val[0].indexOf(" ")+1, val[0].indexOf(")"));
+            
+            keyy.set(left,  right);
+            
+            if (keyy.getRightElement().equals("*")) {
                 // we're dealing with a word count of y
                 // emit [(y, *), "value"]
-                KEY.set(key.getLeftElement(), key.getRightElement());
-                VALUE.set(value.toString());
+                KEY.set(keyy.getLeftElement(), keyy.getRightElement());
+                VALUE.set(val[1]);
 
                 context.write(KEY, VALUE);
             }
             else {
                 // we're dealing with an actual bigram pair of the form (x, y)
                 // emit [(y, __), "(y, x) value)"]
-                KEY.set(key.getLeftElement(), "__");
-                VALUE.set(key.toString()+"-"+value.toString());
-
+                KEY.set(keyy.getLeftElement(), "__");
+                VALUE.set(keyy.toString()+"-"+val[1]);
+                
                 context.write(KEY, VALUE);
             }
         }
@@ -250,7 +261,7 @@ public class PairsPMI extends Configured implements Tool {
                             float pmi = Float.parseFloat(bigram_value[1]);
                             pmi *= 1/p_y;
                             VALUE.set(pmi);
-
+                            
 
                             context.write(KEY, VALUE);
                         }
@@ -362,7 +373,6 @@ public class PairsPMI extends Configured implements Tool {
 
         outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
-
 
 
         long startTime = System.currentTimeMillis();

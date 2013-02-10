@@ -49,7 +49,7 @@ public class PairsPMI extends Configured implements Tool {
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-            
+
             // each mapper must have it's own copy of docWords since docWords only maintains information about 1 doc at a time
             HashMap<String, Integer> docWords = new HashMap<String, Integer>();
             List<String> pair = new ArrayList<String>(2);
@@ -90,12 +90,12 @@ public class PairsPMI extends Configured implements Tool {
                     // skip empty tokens
                     if (terms[j].length() == 0)
                         continue;
-                    
+
                     pair.add(term);
                     pair.add(terms[j]);
-                    
+
                     Collections.sort(pair);
-                    
+
                     // This will count P(X, Y)
                     PAIR.set(pair.get(0), pair.get(1));
                     context.write(PAIR, ONE);
@@ -110,11 +110,14 @@ public class PairsPMI extends Configured implements Tool {
         }
     }
 
-    // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
+    // Reducer: sums up all the counts for each pair.
+    // if pair is of the form (x, *), then will emit a total count of x in the vocabulary
+    // if pair is of the form (x, y), then will emit the calculation P(x,y)/P(x)
     private static class MyReducer extends Reducer<PairOfStrings, FloatWritable, PairOfStrings, FloatWritable> {
 
         // Reuse objects.
         private final static FloatWritable PROB = new FloatWritable(0.0f);
+        private float marginal = 0.0f;
 
         @Override
         public void reduce(PairOfStrings key, Iterable<FloatWritable> values, Context context)
@@ -122,22 +125,27 @@ public class PairsPMI extends Configured implements Tool {
 
             // Sum up values.
             Iterator<FloatWritable> iter = values.iterator();
-            int freqCount = 0;
+            int sum = 0;
             float ratio;
             while (iter.hasNext()) {
-                freqCount += iter.next().get();
+                sum += iter.next().get();
             }
-
+            
+            // emit final count of all (x, *) pairs
             if (key.getRightElement().equals("*")) {
-                ratio = freqCount;// /156215.0f;
-                PROB.set(ratio);
-                context.write(key, PROB); // freq/156215
+                marginal = sum;
+                PROB.set(sum);
+                context.write(key, PROB);
             }
             else {
-                if (freqCount >= 10) {
-                    ratio = freqCount; // /156215.0f;
-                    PROB.set(ratio);
-                    context.write(key, PROB); // freq/156215
+                // emit P(x,y)/P(x) for each (x, y) pair
+                
+                if (sum >= 10) {
+                    float p_x = marginal/156215.0f;
+                    float p_xy = sum/156215.0f;
+
+                    PROB.set(p_xy/p_x);
+                    context.write(key, PROB);
                 }
             }
         }
@@ -165,6 +173,98 @@ public class PairsPMI extends Configured implements Tool {
             context.write(key, SUM);
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
+    private static class MyMapper2 extends Mapper<PairOfStrings, FloatWritable, PairOfStrings, Text> {
+
+        // Reuse objects to save overhead of object creation.
+        private static final PairOfStrings KEY = new PairOfStrings();
+        private static final Text VALUE = new Text();
+
+        @Override
+        public void map(PairOfStrings key, FloatWritable value, Context context)
+                throws IOException, InterruptedException {
+
+            if (key.getRightElement().equals("*")) {
+                // we're dealing with a word count of y
+                // emit [(y, *), "value"]
+                KEY.set(key.getLeftElement(), key.getRightElement());
+                VALUE.set(value.toString());
+
+                context.write(KEY, VALUE);
+            }
+            else {
+                // we're dealing with an actual bigram pair of the form (x, y)
+                // emit [(y, __), "(y, x) value)"]
+                KEY.set(key.getLeftElement(), "__");
+                VALUE.set(key.toString()+"-"+value.toString());
+
+                context.write(KEY, VALUE);
+            }
+        }
+    }
+
+    // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
+    private static class MyReducer2 extends Reducer<PairOfStrings, Text, PairOfStrings, FloatWritable> {
+
+        // Reuse objects.
+        private static final PairOfStrings KEY = new PairOfStrings();
+        private static final FloatWritable VALUE = new FloatWritable();
+        private static float p_y = 0.0f;
+        
+        @Override
+        public void reduce(PairOfStrings key, Iterable<Text> values, Context context)
+                throws IOException, InterruptedException {
+
+
+            Iterator<Text> iter = values.iterator();
+            try {
+                // multiply each (x,y) pair by 1/p_y
+                while (iter.hasNext()) {
+                    if (key.getRightElement().equals("*")) {
+                        p_y = Float.parseFloat(iter.next().toString())/156215.0f;
+                    }
+                    else {
+                        
+                        String[] bigram_value = iter.next().toString().split("-");
+                        if (bigram_value.length == 2) {
+                            String bigramPair = bigram_value[0];
+                            
+                            String left = bigramPair.substring(1, bigramPair.indexOf(" ")-1);
+                            String right = bigramPair.substring(bigramPair.indexOf(" ") + 1, bigramPair.length()-1);
+                            KEY.set(left, right);
+                            
+                            float pmi = Float.parseFloat(bigram_value[1]);
+                            pmi *= 1/p_y;
+                            VALUE.set(pmi);
+                            
+                            
+                            context.write(KEY, VALUE);
+                        }
+                    }
+                }
+            }
+            catch (NumberFormatException e) {
+
+            }
+        }
+    }
+
+
 
 
     /**
@@ -229,17 +329,17 @@ public class PairsPMI extends Configured implements Tool {
         job.setNumReduceTasks(reduceTasks);
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job, new Path(outputPath));
+        FileOutputFormat.setOutputPath(job, new Path("temp"));
 
         job.setOutputKeyClass(PairOfStrings.class);
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        job.setCombinerClass(MyCombiner.class);
+        //job.setCombinerClass(MyCombiner.class);
         job.setPartitionerClass(MyPartitioner.class);
         job.setReducerClass(MyReducer.class);
-        
-        /*
+
+
         //#################################################################################
         // Job 2 Configuration
         Configuration conf2 = getConf();
@@ -252,17 +352,20 @@ public class PairsPMI extends Configured implements Tool {
         FileInputFormat.setInputPaths(job2, new Path("temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
 
-        job2.setOutputKeyClass(Text.class);
-        job2.setOutputValueClass(IntWritable.class);
-
+        job2.setOutputKeyClass(PairOfStrings.class);
+        job2.setOutputValueClass(FloatWritable.class);
+        
         job2.setMapperClass(MyMapper2.class);
-        job2.setCombinerClass(MyReducer2.class);
+        //job2.setCombinerClass(MyReducer2.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################
-         */
+
 
         // Delete the output directories if they exists already.
-        Path outputDir = new Path(outputPath);
+        Path outputDir = new Path("temp");
+        FileSystem.get(conf).delete(outputDir, true);
+        
+        outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
 
 

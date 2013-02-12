@@ -339,7 +339,7 @@ public class PairsPMI extends Configured implements Tool {
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        //job.setCombinerClass(MyCombiner.class);
+        job.setCombinerClass(MyCombiner.class);
         job.setPartitionerClass(MyPartitioner.class);
         job.setReducerClass(MyReducer.class);
         
@@ -362,7 +362,6 @@ public class PairsPMI extends Configured implements Tool {
         job2.setOutputValueClass(FloatWritable.class);
 
         job2.setMapperClass(MyMapper2.class);
-        //job2.setCombinerClass(MyReducer2.class);
         job2.setPartitionerClass(MyPartitioner.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################

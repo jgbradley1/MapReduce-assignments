@@ -1,5 +1,4 @@
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,15 +18,12 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -39,20 +35,21 @@ import edu.umd.cloud9.io.map.HMapSIW;
 import edu.umd.cloud9.io.pair.PairOfStrings;
 
 public class StripesPMI extends Configured implements Tool {
-    private static final Logger LOG = Logger.getLogger(PairsPMI.class);
+    private static final Logger LOG = Logger.getLogger(StripesPMI.class);
 
     // Mapper: emits ...
     private static class MyMapper extends Mapper<LongWritable, Text, Text, HMapSIW> {
 
         // Reuse objects to save overhead of object creation.
         private static final Text KEY = new Text();
-        private static final HMapSIW MAP = new HMapSIW();
 
 
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-
+            
+            HMapSIW MAP = new HMapSIW();
+            
             String line = ((Text) value).toString();
             StringTokenizer itr = new StringTokenizer(line);
 
@@ -82,9 +79,14 @@ public class StripesPMI extends Configured implements Tool {
                 for (int j = i+1; j < docWords.size(); j++) {
                     MAP.put(docWords.get(j), 1);
                 }
-
+                
+                //if (term.equals("god")) {
+                //    System.out.println("# of words found with god=" + MAP.size());
+                //}
                 KEY.set(term);
                 context.write(KEY, MAP);
+                
+                MAP.clear();
 
             }
 
@@ -109,40 +111,45 @@ public class StripesPMI extends Configured implements Tool {
                 throws IOException, InterruptedException {
 
             // Sum up values.
-            Iterator<HMapSIW> iter = values.iterator();
             HashMap<String, Integer> globalDocCount = new HashMap<String, Integer>();
             
-            while (iter.hasNext()) {
-                marginal += 1;
+            float sum = 0;
+            //while (iter.hasNext()) {
+            for (HMapSIW hmap : values) {
                 
-                HMapSIW hmap = iter.next();
+                sum += hmap.get("*");
                 
                 for (String word : hmap.keySet()) {
                     if (globalDocCount.containsKey(word)) {
-                        globalDocCount.put(word, globalDocCount.get(word)+1);
+                        globalDocCount.put(word, globalDocCount.get(word)+hmap.get(word));
                     }
                     else 
                         globalDocCount.put(word, 1);
                 }
             }
+            marginal = sum;
             
+            //if (key.toString().equals("god"))
+            //    System.out.println("\n\n god - " + marginal + "\n\n");
             
             // emit final count of all (x, *) pairs
             KEY.set(key.toString(), "*");
             VALUE.set(marginal);
             context.write(KEY,  VALUE);
-
+            
             for (String word : globalDocCount.keySet()) {
 
                 // emit P(x,y)/P(x) for each (x, y) pair
-                if (globalDocCount.get(word) >= 10) {
+                if (globalDocCount.get(word) >= 10 && word.compareTo("*") != 0) {
                     KEY.set(key.toString(), word);
 
                     float p_x = marginal/156215.0f;
                     float p_xy = globalDocCount.get(word)/156215.0f;
-                    float temp = (float)globalDocCount.get(p_xy/p_x);
-
-                    VALUE.set(temp);
+                    //float temp = globalDocCount.get(word);
+                    
+                    VALUE.set(p_xy/p_x);
+                    //VALUE.set(temp);
+                    
                     context.write(KEY, VALUE);
                 }
             }
@@ -151,26 +158,34 @@ public class StripesPMI extends Configured implements Tool {
     
     protected static class MyCombiner extends Reducer<Text, HMapSIW, Text, HMapSIW> {
         
-        private static final HMapSIW newMap = new HMapSIW();
-        
         @Override
         public void reduce(Text key, Iterable<HMapSIW> values, Context context)
                 throws IOException, InterruptedException {
             
-            for (HMapSIW map : values) {
-                for (String word : map.keySet()) {
+            // Sum up values.
+            HMapSIW newMap = new HMapSIW();
+            for (HMapSIW hmap : values) {
+                
+                for (String word : hmap.keySet()) {
                     if (newMap.containsKey(word)) {
-                        newMap.put(word, newMap.get(word) + map.get(word));
+                        newMap.put(word, newMap.get(word)+hmap.get(word));
                     }
-                    else
-                        newMap.put(word,  map.get(word));
+                    else {
+                        newMap.put(word, hmap.get(word));
+                    }
+                    //System.out.println("\n\n(" + key + ", " + word + ") " + newMap.get(word) + "\n\n");
                 }
             }
+            //if ((key.toString()).compareTo("god") == 0) {
+            //    for (String word : newMap.keySet()) {
+            //        System.out.println("\n\n(" + key + ", " + word + ") " + newMap.get(word) + "\n\n");
+            //    }
+            //}
             context.write(key, newMap);
         }
     }
 
-    protected static class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
+    protected static class MyPartitioner2 extends Partitioner<PairOfStrings, FloatWritable> {
         @Override
         public int getPartition(PairOfStrings key, FloatWritable value, int numReduceTasks) {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
@@ -248,7 +263,7 @@ public class StripesPMI extends Configured implements Tool {
                             String left = bigramPair.substring(1, bigramPair.indexOf(" ")-1);
                             String right = bigramPair.substring(bigramPair.indexOf(" ") + 1, bigramPair.length()-1);
                             KEY.set(left, right);
-
+                            
                             float pmi = Float.parseFloat(bigram_value[1]);
                             pmi *= 1/p_y;
                             pmi = (float)Math.log(pmi);
@@ -259,7 +274,9 @@ public class StripesPMI extends Configured implements Tool {
                     }
                 }
             }
-            catch (NumberFormatException e) {}
+            catch (NumberFormatException e) {
+                System.out.println("SOME FLOAT NUMBER CONVERSION SCREWED UP -- CHECK IT OUT");
+            }
         }
     }
         
@@ -312,7 +329,7 @@ public class StripesPMI extends Configured implements Tool {
         int reduceTasks = cmdline.hasOption(NUM_REDUCERS) ? Integer.parseInt(cmdline.getOptionValue(NUM_REDUCERS)) : 1;
 
 
-        LOG.info("Tool: " + PairsPMI.class.getSimpleName());
+        LOG.info("Tool: " + StripesPMI.class.getSimpleName());
         LOG.info(" - input path: " + inputPath);
         LOG.info(" - output path: " + outputPath);
         LOG.info(" - number of reducers: " + reduceTasks);
@@ -321,13 +338,13 @@ public class StripesPMI extends Configured implements Tool {
         // Job 1 Configuration
         Configuration conf = getConf();
         Job job = Job.getInstance(conf);
-        job.setJobName(PairsPMI.class.getSimpleName());
-        job.setJarByClass(PairsPMI.class);
+        job.setJobName(StripesPMI.class.getSimpleName());
+        job.setJarByClass(StripesPMI.class);
 
         job.setNumReduceTasks(reduceTasks);
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job, new Path(outputPath));
+        FileOutputFormat.setOutputPath(job, new Path("temp"));
         
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(HMapSIW.class);
@@ -335,19 +352,50 @@ public class StripesPMI extends Configured implements Tool {
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        //job.setCombinerClass(MyCombiner.class);
-        //job.setPartitionerClass(MyPartitioner.class);
+        job.setCombinerClass(MyCombiner.class);
         job.setReducerClass(MyReducer.class);
+        
+        
+        //#################################################################################
+        // Job 2 Configuration
+        Configuration conf2 = getConf();
+        Job job2 = Job.getInstance(conf2);
+        job2.setJobName(StripesPMI.class.getSimpleName());
+        job2.setJarByClass(StripesPMI.class);
 
+        job2.setNumReduceTasks(reduceTasks);
 
+        FileInputFormat.setInputPaths(job2, new Path("temp"));
+        FileOutputFormat.setOutputPath(job2, new Path(outputPath));
+
+        job2.setMapOutputKeyClass(PairOfStrings.class);
+        job2.setMapOutputValueClass(Text.class);
+        job2.setOutputKeyClass(PairOfStrings.class);
+        job2.setOutputValueClass(FloatWritable.class);
+        
+        job2.setMapperClass(MyMapper2.class);
+        job2.setPartitionerClass(MyPartitioner2.class);
+        job2.setReducerClass(MyReducer2.class);
+        //#################################################################################
+        
+        
         // Delete the output directories if they exists already.
-        Path outputDir = new Path(outputPath);
+        Path outputDir = new Path("temp");
+        FileSystem.get(conf).delete(outputDir, true);
+        
+        outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
 
 
         long startTime = System.currentTimeMillis();
         if (job.waitForCompletion(true)) {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+            if (job2.waitForCompletion(true)) {
+                LOG.info("Job #1 and #2 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+            }
+            else {
+                LOG.info("ERROR - Job #2 did not finish");
+            }
         }
         else {
             LOG.info("ERROR - Job #1 did not finish");

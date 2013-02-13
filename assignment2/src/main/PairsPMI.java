@@ -126,7 +126,6 @@ public class PairsPMI extends Configured implements Tool {
             // Sum up values.
             Iterator<FloatWritable> iter = values.iterator();
             int sum = 0;
-            float ratio;
             while (iter.hasNext()) {
                 sum += iter.next().get();
             }

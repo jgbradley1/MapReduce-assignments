@@ -41,13 +41,10 @@ import edu.umd.cloud9.io.pair.PairOfStrings;
 public class StripesPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
 
-    // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
+    // Mapper: emits ...
     private static class MyMapper extends Mapper<LongWritable, Text, Text, HMapSIW> {
 
         // Reuse objects to save overhead of object creation.
-        private static final FloatWritable ONE = new FloatWritable(1.0f);
-        private static final PairOfStrings PAIR = new PairOfStrings();
-
         private static final Text KEY = new Text();
         private static final HMapSIW MAP = new HMapSIW();
 
@@ -179,9 +176,95 @@ public class StripesPMI extends Configured implements Tool {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
         }
     }
+    
+    
+    
+    
+    
+ // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
+    private static class MyMapper2 extends Mapper<LongWritable, Text, PairOfStrings, Text> {
+
+        // Reuse objects to save overhead of object creation.
+        private static final PairOfStrings KEY = new PairOfStrings();
+        private static final Text VALUE = new Text();
+
+        @Override
+        public void map(LongWritable key, Text value, Context context)
+                throws IOException, InterruptedException {
+            
+            PairOfStrings keyy = new PairOfStrings();
+            
+            String[] val = value.toString().split("\\t");
+            
+            String left = val[0].substring(1, val[0].indexOf(','));
+            String right = val[0].substring(val[0].indexOf(" ")+1, val[0].indexOf(")"));
+            
+            keyy.set(left,  right);
+            
+            if (keyy.getRightElement().equals("*")) {
+                // we're dealing with a word count of y
+                // emit [(y, *), "value"]
+                KEY.set(keyy.getLeftElement(), keyy.getRightElement());
+                VALUE.set(val[1]);
+
+                context.write(KEY, VALUE);
+            }
+            else {
+                // we're dealing with an actual bigram pair of the form (x, y)
+                // emit [(y, __), "(y, x) value)"]
+                KEY.set(keyy.getLeftElement(), "__");
+                VALUE.set(keyy.toString()+"-"+val[1]);
+                
+                context.write(KEY, VALUE);
+            }
+        }
+    }
+
+    // Reducer: sums up all the counts for each word. Will tell how many docs a word has been found in
+    private static class MyReducer2 extends Reducer<PairOfStrings, Text, PairOfStrings, FloatWritable> {
+
+        // Reuse objects.
+        private static final PairOfStrings KEY = new PairOfStrings();
+        private static final FloatWritable VALUE = new FloatWritable();
+        private static float p_y = 0.0f;
+
+        @Override
+        public void reduce(PairOfStrings key, Iterable<Text> values, Context context)
+                throws IOException, InterruptedException {
 
 
+            Iterator<Text> iter = values.iterator();
+            try {
+                while (iter.hasNext()) {
+                    // multiply each (x,y) pair by 1/p_y
+                    if (key.getRightElement().equals("*")) {
+                        p_y = Float.parseFloat(iter.next().toString())/156215.0f;
+                    }
+                    else {  
+                        String[] bigram_value = iter.next().toString().split("-");
+                        if (bigram_value.length == 2) {
+                            String bigramPair = bigram_value[0];
 
+                            String left = bigramPair.substring(1, bigramPair.indexOf(" ")-1);
+                            String right = bigramPair.substring(bigramPair.indexOf(" ") + 1, bigramPair.length()-1);
+                            KEY.set(left, right);
+
+                            float pmi = Float.parseFloat(bigram_value[1]);
+                            pmi *= 1/p_y;
+                            pmi = (float)Math.log(pmi);
+                            VALUE.set(pmi);
+
+                            context.write(KEY, VALUE);
+                        }
+                    }
+                }
+            }
+            catch (NumberFormatException e) {}
+        }
+    }
+        
+    
+    
     /**
      * Creates an instance of this tool.
      */

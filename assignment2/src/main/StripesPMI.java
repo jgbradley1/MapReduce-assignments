@@ -339,10 +339,10 @@ public class StripesPMI extends Configured implements Tool {
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        //job.setCombinerClass(MyCombiner.class);
+        job.setCombinerClass(MyCombiner.class);
         job.setReducerClass(MyReducer.class);
-
-
+        
+        
         //#################################################################################
         // Job 2 Configuration
         Configuration conf2 = getConf();

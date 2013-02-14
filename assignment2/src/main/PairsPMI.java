@@ -133,8 +133,15 @@ public class PairsPMI extends Configured implements Tool {
             }
         }
     }
-
-    protected static class MyPartitioner extends Partitioner<PairOfStrings, Text> {
+    
+    protected static class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
+        @Override
+        public int getPartition(PairOfStrings key, FloatWritable value, int numReduceTasks) {
+            return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
+        }
+    }
+    
+    protected static class MyPartitioner2 extends Partitioner<PairOfStrings, Text> {
         @Override
         public int getPartition(PairOfStrings key, Text value, int numReduceTasks) {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
@@ -332,9 +339,9 @@ public class PairsPMI extends Configured implements Tool {
         job2.setMapOutputValueClass(Text.class);
         job2.setOutputKeyClass(PairOfStrings.class);
         job2.setOutputValueClass(FloatWritable.class);
-
+        
         job2.setMapperClass(MyMapper2.class);
-        job2.setPartitionerClass(MyPartitioner.class);
+        job2.setPartitionerClass(MyPartitioner2.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################
         

@@ -334,7 +334,7 @@ public class PairsPMI extends Configured implements Tool {
 
         FileInputFormat.setInputPaths(job2, new Path("pairs-temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
-
+        
         job2.setMapOutputKeyClass(PairOfStrings.class);
         job2.setMapOutputValueClass(Text.class);
         job2.setOutputKeyClass(PairOfStrings.class);

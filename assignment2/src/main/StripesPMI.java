@@ -354,12 +354,12 @@ public class StripesPMI extends Configured implements Tool {
 
         FileInputFormat.setInputPaths(job2, new Path("stripes-temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
-
+        
         job2.setMapOutputKeyClass(PairOfStrings.class);
         job2.setMapOutputValueClass(Text.class);
         job2.setOutputKeyClass(PairOfStrings.class);
         job2.setOutputValueClass(FloatWritable.class);
-
+        
         job2.setMapperClass(MyMapper2.class);
         job2.setPartitionerClass(MyPartitioner.class);
         job2.setReducerClass(MyReducer2.class);

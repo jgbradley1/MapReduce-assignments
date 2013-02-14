@@ -339,7 +339,7 @@ public class StripesPMI extends Configured implements Tool {
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        job.setCombinerClass(MyCombiner.class);
+        //job.setCombinerClass(MyCombiner.class);
         job.setReducerClass(MyReducer.class);
         
         
@@ -391,7 +391,7 @@ public class StripesPMI extends Configured implements Tool {
         else {
             LOG.info("ERROR - Job #1 did not finish");
         }
-
+        
         return 0;
     }
 

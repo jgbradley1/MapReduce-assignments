@@ -199,7 +199,7 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 // we're dealing with an actual bigram pair of the form (x, y)
                 // emit [(y, __), "(y, x) value)"]
-                KEY.set(keyy.getLeftElement(), "__");
+                KEY.set(keyy.getRightElement(), "__");
                 VALUE.set(keyy.toString()+"-"+val[1]);
                 
                 context.write(KEY, VALUE);

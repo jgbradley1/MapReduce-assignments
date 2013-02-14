@@ -47,9 +47,9 @@ public class StripesPMI extends Configured implements Tool {
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-            
+
             HMapSIW MAP = new HMapSIW();
-            
+
             String line = ((Text) value).toString();
             StringTokenizer itr = new StringTokenizer(line);
 
@@ -79,13 +79,13 @@ public class StripesPMI extends Configured implements Tool {
                 for (int j = i+1; j < docWords.size(); j++) {
                     MAP.put(docWords.get(j), 1);
                 }
-                
+
                 //if (term.equals("god")) {
                 //    System.out.println("# of words found with god=" + MAP.size());
                 //}
                 KEY.set(term);
                 context.write(KEY, MAP);
-                
+
                 MAP.clear();
 
             }
@@ -112,13 +112,12 @@ public class StripesPMI extends Configured implements Tool {
 
             // Sum up values.
             HashMap<String, Integer> globalDocCount = new HashMap<String, Integer>();
-            
+
             float sum = 0;
-            //while (iter.hasNext()) {
             for (HMapSIW hmap : values) {
-                
+
                 sum += hmap.get("*");
-                
+
                 for (String word : hmap.keySet()) {
                     if (globalDocCount.containsKey(word)) {
                         globalDocCount.put(word, globalDocCount.get(word)+hmap.get(word));
@@ -128,15 +127,15 @@ public class StripesPMI extends Configured implements Tool {
                 }
             }
             marginal = sum;
-            
+
             //if (key.toString().equals("god"))
             //    System.out.println("\n\n god - " + marginal + "\n\n");
-            
+
             // emit final count of all (x, *) pairs
             KEY.set(key.toString(), "*");
             VALUE.set(marginal);
             context.write(KEY,  VALUE);
-            
+
             for (String word : globalDocCount.keySet()) {
 
                 // emit P(x,y)/P(x) for each (x, y) pair
@@ -146,57 +145,45 @@ public class StripesPMI extends Configured implements Tool {
                     float p_x = marginal/156215.0f;
                     float p_xy = globalDocCount.get(word)/156215.0f;
                     //float temp = globalDocCount.get(word);
-                    
+
                     VALUE.set(p_xy/p_x);
                     //VALUE.set(temp);
-                    
+
                     context.write(KEY, VALUE);
                 }
             }
         }
     }
-    
+
     protected static class MyCombiner extends Reducer<Text, HMapSIW, Text, HMapSIW> {
-        
+
+        private static final HMapSIW map = new HMapSIW();
         @Override
         public void reduce(Text key, Iterable<HMapSIW> values, Context context)
                 throws IOException, InterruptedException {
-            
-            // Sum up values.
-            HMapSIW newMap = new HMapSIW();
-            for (HMapSIW hmap : values) {
-                
-                for (String word : hmap.keySet()) {
-                    if (newMap.containsKey(word)) {
-                        newMap.put(word, newMap.get(word)+hmap.get(word));
-                    }
-                    else {
-                        newMap.put(word, hmap.get(word));
-                    }
-                    //System.out.println("\n\n(" + key + ", " + word + ") " + newMap.get(word) + "\n\n");
-                }
+
+            // Sum up values
+            // make sure map is cleared out first
+            map.clear();
+            for (HMapSIW oldMap : values) {
+                map.plus(oldMap);
             }
-            //if ((key.toString()).compareTo("god") == 0) {
-            //    for (String word : newMap.keySet()) {
-            //        System.out.println("\n\n(" + key + ", " + word + ") " + newMap.get(word) + "\n\n");
-            //    }
-            //}
-            context.write(key, newMap);
+            context.write(key, map);
         }
     }
 
-    protected static class MyPartitioner2 extends Partitioner<PairOfStrings, FloatWritable> {
+    protected static class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
         @Override
         public int getPartition(PairOfStrings key, FloatWritable value, int numReduceTasks) {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
         }
     }
-    
-    
-    
-    
-    
- // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
+
+
+
+
+
+    // Mapper: emits (word, 1) for each unique word in a document (i.e. will not double count words in a doc)
     private static class MyMapper2 extends Mapper<LongWritable, Text, PairOfStrings, Text> {
 
         // Reuse objects to save overhead of object creation.
@@ -206,16 +193,16 @@ public class StripesPMI extends Configured implements Tool {
         @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
-            
+
             PairOfStrings keyy = new PairOfStrings();
-            
+
             String[] val = value.toString().split("\\t");
-            
+
             String left = val[0].substring(1, val[0].indexOf(','));
             String right = val[0].substring(val[0].indexOf(" ")+1, val[0].indexOf(")"));
-            
+
             keyy.set(left,  right);
-            
+
             if (keyy.getRightElement().equals("*")) {
                 // we're dealing with a word count of y
                 // emit [(y, *), "value"]
@@ -229,7 +216,7 @@ public class StripesPMI extends Configured implements Tool {
                 // emit [(y, __), "(y, x) value)"]
                 KEY.set(keyy.getLeftElement(), "__");
                 VALUE.set(keyy.toString()+"-"+val[1]);
-                
+
                 context.write(KEY, VALUE);
             }
         }
@@ -263,7 +250,7 @@ public class StripesPMI extends Configured implements Tool {
                             String left = bigramPair.substring(1, bigramPair.indexOf(" ")-1);
                             String right = bigramPair.substring(bigramPair.indexOf(" ") + 1, bigramPair.length()-1);
                             KEY.set(left, right);
-                            
+
                             float pmi = Float.parseFloat(bigram_value[1]);
                             pmi *= 1/p_y;
                             pmi = (float)Math.log(pmi);
@@ -275,13 +262,13 @@ public class StripesPMI extends Configured implements Tool {
                 }
             }
             catch (NumberFormatException e) {
-                System.out.println("SOME FLOAT NUMBER CONVERSION SCREWED UP -- CHECK IT OUT");
+                System.out.println("\n\nSOME FLOAT NUMBER CONVERSION SCREWED UP -- CHECK IT OUT\n\n");
             }
         }
     }
-        
-    
-    
+
+
+
     /**
      * Creates an instance of this tool.
      */
@@ -290,7 +277,7 @@ public class StripesPMI extends Configured implements Tool {
     private static final String INPUT = "input";
     private static final String OUTPUT = "output";
     private static final String NUM_REDUCERS = "numReducers";
-    
+
     /**
      * Runs this tool.
      */
@@ -344,18 +331,18 @@ public class StripesPMI extends Configured implements Tool {
         job.setNumReduceTasks(reduceTasks);
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job, new Path("temp"));
-        
+        FileOutputFormat.setOutputPath(job, new Path("stripes-temp"));
+
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(HMapSIW.class);
         job.setOutputKeyClass(PairOfStrings.class);
         job.setOutputValueClass(FloatWritable.class);
 
         job.setMapperClass(MyMapper.class);
-        job.setCombinerClass(MyCombiner.class);
+        //job.setCombinerClass(MyCombiner.class);
         job.setReducerClass(MyReducer.class);
-        
-        
+
+
         //#################################################################################
         // Job 2 Configuration
         Configuration conf2 = getConf();
@@ -365,24 +352,24 @@ public class StripesPMI extends Configured implements Tool {
 
         job2.setNumReduceTasks(reduceTasks);
 
-        FileInputFormat.setInputPaths(job2, new Path("temp"));
+        FileInputFormat.setInputPaths(job2, new Path("stripes-temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
 
         job2.setMapOutputKeyClass(PairOfStrings.class);
         job2.setMapOutputValueClass(Text.class);
         job2.setOutputKeyClass(PairOfStrings.class);
         job2.setOutputValueClass(FloatWritable.class);
-        
+
         job2.setMapperClass(MyMapper2.class);
-        job2.setPartitionerClass(MyPartitioner2.class);
+        job2.setPartitionerClass(MyPartitioner.class);
         job2.setReducerClass(MyReducer2.class);
         //#################################################################################
-        
-        
+
+
         // Delete the output directories if they exists already.
-        Path outputDir = new Path("temp");
+        Path outputDir = new Path("stripes-temp");
         FileSystem.get(conf).delete(outputDir, true);
-        
+
         outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
 
@@ -392,6 +379,10 @@ public class StripesPMI extends Configured implements Tool {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
             if (job2.waitForCompletion(true)) {
                 LOG.info("Job #1 and #2 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+
+                // delete the temporary intermediate data that was generated between jobs
+                outputDir = new Path("stripes-temp");
+                FileSystem.get(conf).delete(outputDir, true);
             }
             else {
                 LOG.info("ERROR - Job #2 did not finish");

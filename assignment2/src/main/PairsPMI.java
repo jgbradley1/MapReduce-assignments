@@ -1,12 +1,9 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.StringTokenizer;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -19,14 +16,12 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -115,7 +110,6 @@ public class PairsPMI extends Configured implements Tool {
             // Sum up values.
             Iterator<FloatWritable> iter = values.iterator();
             float sum = 0;
-            System.out.println("\n\n KEY:" + key.toString() + " \n\n");
             while (iter.hasNext()) {
                 sum += iter.next().get();
             }
@@ -129,7 +123,7 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 // emit P(x,y)/P(x) for each (x, y) pair
 
-                if (sum >= 1) {
+                if (sum >= 10) {
                     float p_x = marginal/156215.0f;
                     float p_xy = sum/156215.0f;
                     
@@ -311,7 +305,7 @@ public class PairsPMI extends Configured implements Tool {
         job.setNumReduceTasks(reduceTasks);
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job, new Path("temp"));
+        FileOutputFormat.setOutputPath(job, new Path("pairs-temp"));
 
         job.setOutputKeyClass(PairOfStrings.class);
         job.setOutputValueClass(FloatWritable.class);
@@ -331,7 +325,7 @@ public class PairsPMI extends Configured implements Tool {
 
         job2.setNumReduceTasks(reduceTasks);
 
-        FileInputFormat.setInputPaths(job2, new Path("temp"));
+        FileInputFormat.setInputPaths(job2, new Path("pairs-temp"));
         FileOutputFormat.setOutputPath(job2, new Path(outputPath));
 
         job2.setMapOutputKeyClass(PairOfStrings.class);
@@ -345,7 +339,7 @@ public class PairsPMI extends Configured implements Tool {
         //#################################################################################
         
         // Delete the output directories if they exists already.
-        Path outputDir = new Path("temp");
+        Path outputDir = new Path("pairs-temp");
         FileSystem.get(conf).delete(outputDir, true);
 
         outputDir = new Path(outputPath);
@@ -361,7 +355,7 @@ public class PairsPMI extends Configured implements Tool {
                 LOG.info("Job (#1 and #2) Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
                 
                 // delete the temporary intermediate data that was generated between jobs
-                outputDir = new Path("temp");
+                outputDir = new Path("pairs-temp");
                 FileSystem.get(conf).delete(outputDir, true);
             }
             else {
@@ -374,7 +368,7 @@ public class PairsPMI extends Configured implements Tool {
         
         return 0;
     }
-
+    
     /**
      * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
      */

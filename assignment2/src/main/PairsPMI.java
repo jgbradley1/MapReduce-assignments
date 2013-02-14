@@ -134,9 +134,9 @@ public class PairsPMI extends Configured implements Tool {
         }
     }
 
-    protected static class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
+    protected static class MyPartitioner extends Partitioner<PairOfStrings, Text> {
         @Override
-        public int getPartition(PairOfStrings key, FloatWritable value, int numReduceTasks) {
+        public int getPartition(PairOfStrings key, Text value, int numReduceTasks) {
             return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
         }
     }

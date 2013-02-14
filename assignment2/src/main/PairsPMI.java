@@ -130,13 +130,10 @@ public class PairsPMI extends Configured implements Tool {
                 // emit P(x,y)/P(x) for each (x, y) pair
 
                 if (sum >= 1) {
-                    System.out.println("\nKEY:" + key.toString() + "\tVALUE=sum/marginal -- sum:" + sum + " marginal:" + marginal + "\n");
                     float p_x = marginal/156215.0f;
                     float p_xy = sum/156215.0f;
-                    float temp = sum;
                     
-                    //PROB.set(p_xy/p_x);
-                    PROB.set(temp);
+                    PROB.set(p_xy/p_x);
                     context.write(key, PROB);
                 }
             }
@@ -165,16 +162,6 @@ public class PairsPMI extends Configured implements Tool {
             context.write(key, SUM);
         }
     }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -368,15 +355,18 @@ public class PairsPMI extends Configured implements Tool {
         long startTime = System.currentTimeMillis();
         if (job.waitForCompletion(true)) {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
-            /*
+            
             if (job2.waitForCompletion(true)) {
                 LOG.info("Job #2 Finished");
                 LOG.info("Job (#1 and #2) Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+                
+                // delete the temporary intermediate data that was generated between jobs
+                outputDir = new Path("temp");
+                FileSystem.get(conf).delete(outputDir, true);
             }
             else {
                 LOG.info("ERROR - Job #2 did not finish");
             }
-            */
         }
         else {
             LOG.info("ERROR - Job #1 did not finish");

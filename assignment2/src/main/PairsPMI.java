@@ -51,9 +51,9 @@ public class PairsPMI extends Configured implements Tool {
                 throws IOException, InterruptedException {
 
             // each mapper must have it's own copy of docWords since docWords only maintains information about 1 doc at a time
-            HashMap<String, Integer> docWords = new HashMap<String, Integer>();
+            List<String> docWords = new LinkedList<String>();
             List<String> pair = new ArrayList<String>(2);
-
+            
             String text = value.toString();
             String[] terms = text.split("\\s+");
 
@@ -64,40 +64,29 @@ public class PairsPMI extends Configured implements Tool {
                 // skip empty tokens
                 if (term.length() == 0)
                     continue;
-
-                if (!docWords.containsKey(term)) {
-                    docWords.put(term, 1);
+                
+                if (!docWords.contains(term)) {
+                    docWords.add(term);
                 }
                 else {
                     terms[i] = "";
                 }
             }
-
+            
+            Collections.sort(docWords);
+            
             // Emit word counts and bigram counts
-            for (int i = 0; i < terms.length; i++) {
-                String term = terms[i];
-
-                // skip empty tokens
-                if (term.length() == 0)
-                    continue;
+            for (int i = 0; i < docWords.size(); i++) {
+                String term = docWords.get(i);
 
                 // This will count P(X)
                 PAIR.set(term, "*");
                 context.write(PAIR, ONE);
-
-                for (int j = i+1; j < terms.length; j++) {
-
-                    // skip empty tokens
-                    if (terms[j].length() == 0)
-                        continue;
-
-                    pair.add(term);
-                    pair.add(terms[j]);
-
-                    Collections.sort(pair);
+                
+                for (int j = i+1; j < docWords.size(); j++) {
 
                     // This will count P(X, Y)
-                    PAIR.set(pair.get(0), pair.get(1));
+                    PAIR.set(term,  docWords.get(j));
                     context.write(PAIR, ONE);
                     pair.clear();
                 }
@@ -125,11 +114,12 @@ public class PairsPMI extends Configured implements Tool {
 
             // Sum up values.
             Iterator<FloatWritable> iter = values.iterator();
-            int sum = 0;
+            float sum = 0;
+            System.out.println("\n\n KEY:" + key.toString() + " \n\n");
             while (iter.hasNext()) {
                 sum += iter.next().get();
             }
-
+            
             // emit final count of all (x, *) pairs
             if (key.getRightElement().equals("*")) {
                 marginal = sum;
@@ -139,11 +129,14 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 // emit P(x,y)/P(x) for each (x, y) pair
 
-                if (sum >= 10) {
+                if (sum >= 1) {
+                    System.out.println("\nKEY:" + key.toString() + "\tVALUE=sum/marginal -- sum:" + sum + " marginal:" + marginal + "\n");
                     float p_x = marginal/156215.0f;
                     float p_xy = sum/156215.0f;
-
-                    PROB.set(p_xy/p_x);
+                    float temp = sum;
+                    
+                    //PROB.set(p_xy/p_x);
+                    PROB.set(temp);
                     context.write(key, PROB);
                 }
             }
@@ -237,8 +230,7 @@ public class PairsPMI extends Configured implements Tool {
         @Override
         public void reduce(PairOfStrings key, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
-
-
+            
             Iterator<Text> iter = values.iterator();
             try {
                 while (iter.hasNext()) {
@@ -376,7 +368,7 @@ public class PairsPMI extends Configured implements Tool {
         long startTime = System.currentTimeMillis();
         if (job.waitForCompletion(true)) {
             LOG.info("Job #1 Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
-            
+            /*
             if (job2.waitForCompletion(true)) {
                 LOG.info("Job #2 Finished");
                 LOG.info("Job (#1 and #2) Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
@@ -384,6 +376,7 @@ public class PairsPMI extends Configured implements Tool {
             else {
                 LOG.info("ERROR - Job #2 did not finish");
             }
+            */
         }
         else {
             LOG.info("ERROR - Job #1 did not finish");

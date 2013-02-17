@@ -59,7 +59,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             }
         }
     }
-
+    
     // Reducer: sums up all the counts.
     private static class MyReducer extends Reducer<Text, PairOfInts, Text, Text> {
 

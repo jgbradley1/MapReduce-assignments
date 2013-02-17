@@ -1,5 +1,8 @@
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.StringTokenizer;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -11,11 +14,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
@@ -24,73 +29,74 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
 import cern.colt.Arrays;
+import edu.umd.cloud9.io.array.ArrayListWritable;
 import edu.umd.cloud9.io.pair.PairOfInts;
+import edu.umd.cloud9.io.pair.PairOfWritables;
+import edu.umd.cloud9.util.fd.Object2IntFrequencyDistribution;
+import edu.umd.cloud9.util.fd.Object2IntFrequencyDistributionEntry;
+import edu.umd.cloud9.util.pair.PairOfObjectInt;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
     // Mapper: emits (token, 1) for every word occurrence.
     private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfInts> {
-
-        // Reuse objects to save overhead of object creation.
-        private final static PairOfInts PAIR = new PairOfInts();
-        private final static Text WORD = new Text();
+        private static final Text WORD = new Text();
+        private static final Object2IntFrequencyDistribution<String> COUNTS =
+                new Object2IntFrequencyDistributionEntry<String>();
 
         @Override
-        public void map(LongWritable key, Text value, Context context)
+        public void map(LongWritable docno, Text doc, Context context)
                 throws IOException, InterruptedException {
-            String line = ((Text) value).toString();
-            String[] terms = line.split("\\s+");
-            String word;
-            int tf; // term frequency
 
-            for (int i = 0; i < terms.length; i++) {
-                word = terms[i];
-                tf = 0;
-                for (int j = 0; j < terms.length; j++) {
-                    if (word.compareTo(terms[j]) == 0) {
-                        tf++;
-                    }
+            String line = ((Text) doc).toString();
+            StringTokenizer itr = new StringTokenizer(line);
+            COUNTS.clear();
+            String term;
+
+            // Build a histogram of the terms.
+            while (itr.hasMoreTokens()) {
+                term = itr.nextToken();
+                if (term == null || term.length() == 0) {
+                    continue;
                 }
 
-                WORD.set(word);
-                PAIR.set(Integer.parseInt(key.toString()), tf);
-                context.write(WORD, PAIR);
+                COUNTS.increment(term);
+            }
+
+            // Emit postings.
+            for (PairOfObjectInt<String> e : COUNTS) {
+                WORD.set(e.getLeftElement());
+                context.write(WORD, new PairOfInts((int) docno.get(), e.getRightElement()));
             }
         }
     }
-    
-    // Reducer: sums up all the counts.
-    private static class MyReducer extends Reducer<Text, PairOfInts, Text, Text> {
 
-        // Reuse objects.
-        private final static Text PostingsList = new Text();
+    private static class MyReducer extends
+    Reducer<Text, PairOfInts, Text, PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>> {
+        private final static IntWritable DF = new IntWritable();
 
         @Override
         public void reduce(Text key, Iterable<PairOfInts> values, Context context)
                 throws IOException, InterruptedException {
+            Iterator<PairOfInts> iter = values.iterator();
+            ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
 
-            if (!key.toString().isEmpty()) {
-                // Sum up values.
-                int df = 0; // document frequency
-                String postingList = "";
-                boolean firstPair = true;
-                for (PairOfInts docWordCount : values) {
-                    df += docWordCount.getRightElement();
-                    if (!firstPair)
-                        postingList += ", " + docWordCount.toString();
-                    else {
-                        postingList += docWordCount.toString();
-                        firstPair = false;
-                    }
-                }
-                PostingsList.set(": " + df + " : " + postingList);
-                context.write(key, PostingsList);
+            int df = 0;
+            while (iter.hasNext()) {
+                postings.add(iter.next().clone());
+                df++;
             }
+
+            // Sort postings by docno ascending.
+            Collections.sort(postings);
+
+            DF.set(df);
+            context.write(key, new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>(DF, postings));
         }
     }
-    
-    
+
+
     /**
      * Creates an instance of this tool.
      */

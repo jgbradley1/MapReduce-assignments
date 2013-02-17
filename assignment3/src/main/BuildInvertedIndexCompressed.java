@@ -89,7 +89,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             }
         }
     }
-
+    
+    
     /**
      * Creates an instance of this tool.
      */

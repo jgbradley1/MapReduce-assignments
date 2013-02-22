@@ -63,7 +63,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
                 COUNTS.increment(term);
             }
-
+            
             // Emit postings.
             for (PairOfObjectInt<String> e : COUNTS) {
                 WORD.set(e.getLeftElement());

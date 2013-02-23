@@ -23,6 +23,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MapFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -155,14 +156,13 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
-
-        //job.setInputFormatClass(SequenceFileInputFormat.class);
-        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        
+        job.setOutputFormatClass(MapFileOutputFormat.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(PairOfInts.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-
+        job.setOutputValueClass(PairOfWritables.class);
+        
         job.setMapperClass(MyMapper.class);
         //job.setCombinerClass(MyReducer.class);
         job.setReducerClass(MyReducer.class);

@@ -27,3 +27,14 @@ These three words have a high PMI with each other because they are the names of 
 The three words that have the highest PMI with the word "love" are (hate, love) = 2.5755355, (hermia, love) = 2.0289917, and (commandments, love) = 1.9395468
 </li>
 </ul>
+
+Grading
+=======
+
+Everything looks great: answer to question #3 (number of pairs) is a
+bit off, but not a big deal. I was able to run your code without any
+problems. Great work!
+
+Score: 35/35
+
+-Jimmy

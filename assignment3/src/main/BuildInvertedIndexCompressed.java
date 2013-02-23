@@ -16,11 +16,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.VIntWritable;
+import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MapFileOutputFormat;
@@ -41,7 +45,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
     // Mapper: emits (token, 1) for every word occurrence.
-    private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfInts> {
+    private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfVInts> {
         private static final Text WORD = new Text();
         private static final Object2IntFrequencyDistribution<String> COUNTS =
                 new Object2IntFrequencyDistributionEntry<String>();
@@ -68,21 +72,22 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             // Emit postings.
             for (PairOfObjectInt<String> e : COUNTS) {
                 WORD.set(e.getLeftElement());
-                context.write(WORD, new PairOfInts((int) docno.get(), e.getRightElement()));
+                context.write(WORD, new PairOfVInts((int) docno.get(), e.getRightElement()));
             }
         }
     }
 
     private static class MyReducer extends
-    Reducer<Text, PairOfInts, Text, PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>> {
-        private final static IntWritable DF = new IntWritable();
-
+    Reducer<Text, PairOfVInts, Text, PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>> {
+        private final static VIntWritable DF = new VIntWritable();
+        
+        
         @Override
-        public void reduce(Text key, Iterable<PairOfInts> values, Context context)
+        public void reduce(Text key, Iterable<PairOfVInts> values, Context context)
                 throws IOException, InterruptedException {
-            Iterator<PairOfInts> iter = values.iterator();
-            ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
-
+            Iterator<PairOfVInts> iter = values.iterator();
+            ArrayListWritable<PairOfVInts> postings = new ArrayListWritable<PairOfVInts>();
+            
             int df = 0;
             while (iter.hasNext()) {
                 postings.add(iter.next().clone());
@@ -93,7 +98,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             Collections.sort(postings);
 
             DF.set(df);
-            context.write(key, new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>(DF, postings));
+            context.write(key, new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>(DF, postings));
         }
     }
 
@@ -153,18 +158,28 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         Job job = Job.getInstance(conf);
         job.setJobName(BuildInvertedIndexCompressed.class.getSimpleName());
         job.setNumReduceTasks(reduceTasks);
-
+        
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
-        
+        /*
+        // Compression Option 1
+        conf.setBoolean("mapred.output.compress", true);
+        conf.set("mapred.output.compression.type", CompressionType.BLOCK.toString());
+        conf.setClass("mapred.output.compression.codec", GzipCodec.class, CompressionCodec.class);
+        */
+        /*
+        // Compression Option 2
+        FileOutputFormat.setCompressOutput(job, true);
+        FileOutputFormat.setOutputCompressorClass(job, MyCompressionCodec.class);
+        */
         job.setOutputFormatClass(MapFileOutputFormat.class);
+        
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(PairOfInts.class);
+        job.setMapOutputValueClass(PairOfVInts.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(PairOfWritables.class);
         
         job.setMapperClass(MyMapper.class);
-        //job.setCombinerClass(MyReducer.class);
         job.setReducerClass(MyReducer.class);
 
         // Delete the output directory if it exists already.

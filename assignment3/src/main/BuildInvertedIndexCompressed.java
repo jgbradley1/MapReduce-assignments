@@ -161,17 +161,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
-        /*
-        // Compression Option 1
-        conf.setBoolean("mapred.output.compress", true);
-        conf.set("mapred.output.compression.type", CompressionType.BLOCK.toString());
-        conf.setClass("mapred.output.compression.codec", GzipCodec.class, CompressionCodec.class);
-        */
-        /*
-        // Compression Option 2
-        FileOutputFormat.setCompressOutput(job, true);
-        FileOutputFormat.setOutputCompressorClass(job, MyCompressionCodec.class);
-        */
+        
         job.setOutputFormatClass(MapFileOutputFormat.class);
         
         job.setMapOutputKeyClass(Text.class);

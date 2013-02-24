@@ -58,7 +58,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             StringTokenizer itr = new StringTokenizer(line);
             COUNTS.clear();
             String term;
-
+            
             // Build a histogram of the terms.
             while (itr.hasMoreTokens()) {
                 term = itr.nextToken();
@@ -185,7 +185,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         // Delete the output directory if it exists already.
         Path outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
-
+        
         long startTime = System.currentTimeMillis();
         job.waitForCompletion(true);
         LOG.info("Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");

@@ -179,7 +179,7 @@ public class PairOfVInts implements WritableComparable<PairOfVInts> {
         return new PairOfVInts(this.leftElement, this.rightElement);
     }
 
-    /** Comparator optimized for <code>PairOfInts</code>. */
+    /** Comparator optimized for <code>PairOfVInts</code>. */
     public static class Comparator extends WritableComparator {
 
         /**

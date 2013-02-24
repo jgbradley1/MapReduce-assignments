@@ -19,6 +19,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.util.ToolRunner;
 
 import cern.colt.Arrays;
@@ -98,17 +99,17 @@ public class BooleanRetrievalCompressed {
     public Set<Integer> fetchDocumentSet(String term) throws IOException {
         Set<Integer> set = new TreeSet<Integer>();
 
-        for (PairOfInts pair : fetchPostings(term)) {
+        for (PairOfVInts pair : fetchPostings(term)) {
             set.add(pair.getLeftElement());
         }
 
         return set;
     }
 
-    public ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
+    public ArrayListWritable<PairOfVInts> fetchPostings(String term) throws IOException {
         Text key = new Text();
-        PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-                new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
+        PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>> value =
+                new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>();
 
         key.set(term);
         index.get(key, value);

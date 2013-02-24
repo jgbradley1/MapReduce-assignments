@@ -16,6 +16,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -74,16 +75,16 @@ public class LookupPostingsCompressed {
         BufferedReader d = new BufferedReader(new InputStreamReader(collection));
 
         Text key = new Text();
-        PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-                new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
+        PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>> value =
+                new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>();
 
         System.out.println("Looking up postings for the term \"starcross'd\"");
         key.set("starcross'd");
 
         reader.get(key, value);
 
-        ArrayListWritable<PairOfInts> postings = value.getRightElement();
-        for (PairOfInts pair : postings) {
+        ArrayListWritable<PairOfVInts> postings = value.getRightElement();
+        for (PairOfVInts pair : postings) {
             System.out.println(pair);
             collection.seek(pair.getLeftElement());
             System.out.println(d.readLine());
@@ -95,7 +96,7 @@ public class LookupPostingsCompressed {
 
         Int2IntFrequencyDistribution goldHist = new Int2IntFrequencyDistributionEntry();
         postings = value.getRightElement();
-        for (PairOfInts pair : postings) {
+        for (PairOfVInts pair : postings) {
             goldHist.increment(pair.getRightElement());
         }
 
@@ -110,7 +111,7 @@ public class LookupPostingsCompressed {
 
         Int2IntFrequencyDistribution silverHist = new Int2IntFrequencyDistributionEntry();
         postings = value.getRightElement();
-        for (PairOfInts pair : postings) {
+        for (PairOfVInts pair : postings) {
             silverHist.increment(pair.getRightElement());
         }
 

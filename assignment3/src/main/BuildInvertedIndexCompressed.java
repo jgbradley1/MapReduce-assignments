@@ -14,28 +14,21 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.VIntWritable;
-import org.apache.hadoop.io.WritableUtils;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MapFileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
 import cern.colt.Arrays;
 import edu.umd.cloud9.io.array.ArrayListWritable;
-import edu.umd.cloud9.io.pair.PairOfInts;
 import edu.umd.cloud9.io.pair.PairOfWritables;
 import edu.umd.cloud9.util.fd.Object2IntFrequencyDistribution;
 import edu.umd.cloud9.util.fd.Object2IntFrequencyDistributionEntry;
@@ -44,7 +37,7 @@ import edu.umd.cloud9.util.pair.PairOfObjectInt;
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
-    // Mapper: emits (token, 1) for every word occurrence.
+    // Mapper: emits (term, tf) for every word in the document.
     private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfVInts> {
         private static final Text WORD = new Text();
         private static final Object2IntFrequencyDistribution<String> COUNTS =
@@ -69,7 +62,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
                 COUNTS.increment(term);
             }
             
-            // Emit postings.
+            // Emit postings of the form - (term, (docID, tf))
             for (PairOfObjectInt<String> e : COUNTS) {
                 WORD.set(e.getLeftElement());
                 context.write(WORD, new PairOfVInts((int) docno.get(), e.getRightElement()));

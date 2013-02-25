@@ -19,6 +19,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.VIntWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -29,6 +30,7 @@ import org.apache.log4j.Logger;
 
 import cern.colt.Arrays;
 import edu.umd.cloud9.io.array.ArrayListWritable;
+import edu.umd.cloud9.io.pair.PairOfStringInt;
 import edu.umd.cloud9.io.pair.PairOfWritables;
 import edu.umd.cloud9.util.fd.Object2IntFrequencyDistribution;
 import edu.umd.cloud9.util.fd.Object2IntFrequencyDistributionEntry;
@@ -38,10 +40,12 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
     // Mapper: emits (term, tf) for every word in the document.
-    private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfVInts> {
+    private static class MyMapper extends Mapper<LongWritable, Text, PairOfStringInt, VIntWritable> {
         private static final Text WORD = new Text();
         private static final Object2IntFrequencyDistribution<String> COUNTS =
                 new Object2IntFrequencyDistributionEntry<String>();
+        private static final PairOfStringInt KEY = new PairOfStringInt();
+        private static final VIntWritable VALUE = new VIntWritable();
 
         @Override
         public void map(LongWritable docno, Text doc, Context context)
@@ -51,7 +55,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             StringTokenizer itr = new StringTokenizer(line);
             COUNTS.clear();
             String term;
-            
+
             // Build a histogram of the terms.
             while (itr.hasMoreTokens()) {
                 term = itr.nextToken();
@@ -61,37 +65,60 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
                 COUNTS.increment(term);
             }
-            
+
             // Emit postings of the form - (term, (docID, tf))
             for (PairOfObjectInt<String> e : COUNTS) {
-                WORD.set(e.getLeftElement());
-                context.write(WORD, new PairOfVInts((int) docno.get(), e.getRightElement()));
+                //WORD.set(e.getLeftElement());
+                //context.write(WORD, new PairOfVInts((int) docno.get(), e.getRightElement()));
+
+                KEY.set(e.getLeftElement(), (int)docno.get());
+                VALUE.set(e.getRightElement());
+                context.write(KEY,  VALUE);
             }
         }
     }
 
+    protected static class MyPartitioner extends Partitioner<PairOfStringInt, VIntWritable> {
+        @Override
+        public int getPartition(PairOfStringInt key, VIntWritable value, int numReduceTasks) {
+            return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
+        }
+    }
+
     private static class MyReducer extends
-    Reducer<Text, PairOfVInts, Text, PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>> {
-        private final static VIntWritable DF = new VIntWritable();
+    Reducer<PairOfStringInt, VIntWritable, Text, ArrayListWritable<PairOfVInts>> {
+        
+        private static final Text KEY = new Text();
+        private static final VIntWritable DF = new VIntWritable();
+        private static final ArrayListWritable<PairOfVInts> POSTINGS = new ArrayListWritable<PairOfVInts>();
+        private static final int df = 0;
+        private static String prevTerm = "";
+        private static String term = "";
         
         
         @Override
-        public void reduce(Text key, Iterable<PairOfVInts> values, Context context)
+        public void reduce(PairOfStringInt key, Iterable<VIntWritable> values, Context context)
                 throws IOException, InterruptedException {
-            Iterator<PairOfVInts> iter = values.iterator();
-            ArrayListWritable<PairOfVInts> postings = new ArrayListWritable<PairOfVInts>();
             
-            int df = 0;
-            while (iter.hasNext()) {
-                postings.add(iter.next().clone());
-                df++;
+            Iterator<VIntWritable> iter = values.iterator();
+            int tf = 0;;
+            if (iter.hasNext()) { tf = iter.next().get(); }
+            else { System.out.println("\n\n\n\nERROR\n\n\n\n"); }
+            
+            term = key.getLeftElement();
+            if (term.compareTo(prevTerm) != 0 && !prevTerm.isEmpty()) {
+                KEY.set(prevTerm);
+                context.write(KEY, POSTINGS);
+                POSTINGS.clear();
             }
-
-            // Sort postings by docno ascending.
-            Collections.sort(postings);
-
-            DF.set(df);
-            context.write(key, new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>(DF, postings));
+            
+            POSTINGS.add(new PairOfVInts(key.getRightElement(), tf));
+            prevTerm = term;
+        }
+        
+        @Override
+        public void cleanup(Context context) throws IOException, InterruptedException {
+            context.write(KEY, POSTINGS);
         }
     }
 
@@ -151,24 +178,24 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         Job job = Job.getInstance(conf);
         job.setJobName(BuildInvertedIndexCompressed.class.getSimpleName());
         job.setNumReduceTasks(reduceTasks);
-        
+
         FileInputFormat.setInputPaths(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
-        
         job.setOutputFormatClass(MapFileOutputFormat.class);
-        
-        job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(PairOfVInts.class);
+
+        job.setMapOutputKeyClass(PairOfStringInt.class);
+        job.setMapOutputValueClass(VIntWritable.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(PairOfWritables.class);
-        
+        job.setOutputValueClass(ArrayListWritable.class);
+
         job.setMapperClass(MyMapper.class);
         job.setReducerClass(MyReducer.class);
+        job.setPartitionerClass(MyPartitioner.class);
 
         // Delete the output directory if it exists already.
         Path outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
-        
+
         long startTime = System.currentTimeMillis();
         job.waitForCompletion(true);
         LOG.info("Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");

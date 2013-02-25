@@ -75,15 +75,14 @@ public class LookupPostingsCompressed {
         BufferedReader d = new BufferedReader(new InputStreamReader(collection));
 
         Text key = new Text();
-        PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>> value =
-                new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>();
+        ArrayListWritable<PairOfVInts> value = new ArrayListWritable<PairOfVInts>();
 
         System.out.println("Looking up postings for the term \"starcross'd\"");
         key.set("starcross'd");
 
         reader.get(key, value);
 
-        ArrayListWritable<PairOfVInts> postings = value.getRightElement();
+        ArrayListWritable<PairOfVInts> postings = value;
         for (PairOfVInts pair : postings) {
             System.out.println(pair);
             collection.seek(pair.getLeftElement());
@@ -92,14 +91,14 @@ public class LookupPostingsCompressed {
 
         key.set("gold");
         reader.get(key, value);
-        System.out.println("Complete postings list for 'gold': " + value);
+        System.out.println("Complete postings list for 'gold': (" + value.size() + ", " + value + ")");
 
         Int2IntFrequencyDistribution goldHist = new Int2IntFrequencyDistributionEntry();
-        postings = value.getRightElement();
+        postings = value;
         for (PairOfVInts pair : postings) {
             goldHist.increment(pair.getRightElement());
         }
-
+        
         System.out.println("histogram of tf values for gold");
         for (PairOfInts pair : goldHist) {
             System.out.println(pair.getLeftElement() + "\t" + pair.getRightElement());
@@ -107,10 +106,10 @@ public class LookupPostingsCompressed {
 
         key.set("silver");
         reader.get(key, value);
-        System.out.println("Complete postings list for 'silver': " + value);
+        System.out.println("Complete postings list for 'silver': (" + value.size() + ", " + value + ")");
 
         Int2IntFrequencyDistribution silverHist = new Int2IntFrequencyDistributionEntry();
-        postings = value.getRightElement();
+        postings = value;
         for (PairOfVInts pair : postings) {
             silverHist.increment(pair.getRightElement());
         }
@@ -126,7 +125,7 @@ public class LookupPostingsCompressed {
         if (w == null) {
             System.out.println("the term bronze does not appear in the collection");
         }
-
+        
         collection.close();
         reader.close();
     }

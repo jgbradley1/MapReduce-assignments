@@ -108,13 +108,12 @@ public class BooleanRetrievalCompressed {
 
     public ArrayListWritable<PairOfVInts> fetchPostings(String term) throws IOException {
         Text key = new Text();
-        PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>> value =
-                new PairOfWritables<VIntWritable, ArrayListWritable<PairOfVInts>>();
+        ArrayListWritable<PairOfVInts> value = new ArrayListWritable<PairOfVInts>();
 
         key.set(term);
         index.get(key, value);
 
-        return value.getRightElement();
+        return value;
     }
 
     public String fetchLine(long offset) throws IOException {

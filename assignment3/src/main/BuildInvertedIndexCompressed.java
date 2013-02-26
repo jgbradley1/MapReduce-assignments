@@ -1,3 +1,5 @@
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -14,9 +16,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.VIntWritable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
@@ -86,15 +90,17 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     }
 
     private static class MyReducer extends
-    Reducer<PairOfStringInt, VIntWritable, Text, ArrayListWritable<PairOfVInts>> {
+    Reducer<PairOfStringInt, VIntWritable, Text, BytesWritable> {
         
         private static final Text KEY = new Text();
         private static final VIntWritable DF = new VIntWritable();
-        private static final ArrayListWritable<PairOfVInts> POSTINGS = new ArrayListWritable<PairOfVInts>();
-        private static final int df = 0;
+        //private static final ArrayListWritable<PairOfVInts> POSTINGS = new ArrayListWritable<PairOfVInts>();
+        private static final BytesWritable POSTINGS = new BytesWritable();
         private static String prevTerm = "";
         private static String term = "";
         
+        private static final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        private static final DataOutputStream dataOut = new DataOutputStream(out);
         
         @Override
         public void reduce(PairOfStringInt key, Iterable<VIntWritable> values, Context context)
@@ -108,11 +114,17 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             term = key.getLeftElement();
             if (term.compareTo(prevTerm) != 0 && !prevTerm.isEmpty()) {
                 KEY.set(prevTerm);
-                context.write(KEY, POSTINGS);
-                POSTINGS.clear();
+                
+                POSTINGS.set(out.toByteArray(), 0, out.size());
+                context.write(KEY,  POSTINGS);
+                out.flush();
+                out.reset();
+                dataOut.flush();
             }
             
-            POSTINGS.add(new PairOfVInts(key.getRightElement(), tf));
+            WritableUtils.writeVInt(dataOut, key.getRightElement());
+            WritableUtils.writeVInt(dataOut, tf);
+            
             prevTerm = term;
         }
         
@@ -121,8 +133,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             context.write(KEY, POSTINGS);
         }
     }
-
-
+    
+    
     /**
      * Creates an instance of this tool.
      */
@@ -187,7 +199,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         job.setMapOutputKeyClass(PairOfStringInt.class);
         job.setMapOutputValueClass(VIntWritable.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(ArrayListWritable.class);
+        job.setOutputValueClass(BytesWritable.class);
 
         job.setMapperClass(MyMapper.class);
         job.setReducerClass(MyReducer.class);

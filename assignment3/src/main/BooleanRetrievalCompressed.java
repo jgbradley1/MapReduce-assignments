@@ -1,4 +1,7 @@
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Set;
@@ -16,17 +19,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.VIntWritable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.ToolRunner;
 
 import cern.colt.Arrays;
 
 import edu.umd.cloud9.io.array.ArrayListWritable;
 import edu.umd.cloud9.io.pair.PairOfInts;
-import edu.umd.cloud9.io.pair.PairOfWritables;
 
 public class BooleanRetrievalCompressed {
     private final MapFile.Reader index;
@@ -69,7 +71,7 @@ public class BooleanRetrievalCompressed {
         Set<Integer> s2 = stack.pop();
 
         Set<Integer> sn = new TreeSet<Integer>();
-
+        
         for (int n : s1) {
             if (s2.contains(n)) {
                 sn.add(n);
@@ -98,22 +100,23 @@ public class BooleanRetrievalCompressed {
 
     public Set<Integer> fetchDocumentSet(String term) throws IOException {
         Set<Integer> set = new TreeSet<Integer>();
-
-        for (PairOfVInts pair : fetchPostings(term)) {
+        
+        for (PairOfInts pair : fetchPostings(term)) {
             set.add(pair.getLeftElement());
         }
-
+        
         return set;
     }
-
-    public ArrayListWritable<PairOfVInts> fetchPostings(String term) throws IOException {
+    
+    
+    public ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
         Text key = new Text();
-        ArrayListWritable<PairOfVInts> value = new ArrayListWritable<PairOfVInts>();
-
+        BytesWritable bytesValue = new BytesWritable();
+        
         key.set(term);
-        index.get(key, value);
+        index.get(key, bytesValue);
 
-        return value;
+        return deserializePosting(bytesValue);
     }
 
     public String fetchLine(long offset) throws IOException {
@@ -175,5 +178,29 @@ public class BooleanRetrievalCompressed {
             s.runQuery(q);
             System.out.println("");
         }
+    }
+    
+    private static ArrayListWritable<PairOfInts> deserializePosting(BytesWritable inputBytes) {
+        ArrayListWritable<PairOfInts> posting = new ArrayListWritable<PairOfInts>();
+        
+        DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(inputBytes.getBytes()));
+        
+        try {
+            while (true) {
+                int left = WritableUtils.readVInt(dataIn);
+                int right = WritableUtils.readVInt(dataIn);
+                
+                if (right != 0) 
+                    posting.add(new PairOfInts(left, right));
+            }
+        }
+        catch (EOFException e){}
+        catch (IOException e) {}
+        
+        try {
+            dataIn.close();
+        } catch (IOException e) {}
+        
+        return posting;
     }
 }

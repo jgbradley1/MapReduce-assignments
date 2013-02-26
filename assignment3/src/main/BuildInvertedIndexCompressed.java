@@ -69,12 +69,10 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
                 COUNTS.increment(term);
             }
-
-            // Emit postings of the form - (term, (docID, tf))
+            
+            // Emit postings of the form - ((term, docID), tf)
             for (PairOfObjectInt<String> e : COUNTS) {
-                //WORD.set(e.getLeftElement());
-                //context.write(WORD, new PairOfVInts((int) docno.get(), e.getRightElement()));
-
+                
                 KEY.set(e.getLeftElement(), (int)docno.get());
                 VALUE.set(e.getRightElement());
                 context.write(KEY,  VALUE);
@@ -96,6 +94,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         private static final BytesWritable POSTINGS = new BytesWritable();
         private static String prevTerm = "";
         private static String term = "";
+        private static int prevDocID = 0;
         
         private static final ByteArrayOutputStream out = new ByteArrayOutputStream();
         private static final DataOutputStream dataOut = new DataOutputStream(out);
@@ -107,22 +106,26 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             Iterator<VIntWritable> iter = values.iterator();
             int tf = 0;;
             if (iter.hasNext()) { tf = iter.next().get(); }
-            else { System.out.println("\n\n\n\nERROR\n\n\n\n"); }
             
             term = key.getLeftElement();
             if (term.compareTo(prevTerm) != 0 && !prevTerm.isEmpty()) {
                 KEY.set(prevTerm);
+                prevDocID = 0;
                 
                 POSTINGS.set(out.toByteArray(), 0, out.size());
                 context.write(KEY,  POSTINGS);
+                
+                // clear the streams
                 out.flush();
                 out.reset();
                 dataOut.flush();
             }
             
-            WritableUtils.writeVInt(dataOut, key.getRightElement());
+            // use d-gap compression on the docID
+            WritableUtils.writeVInt(dataOut, (key.getRightElement()-prevDocID));
             WritableUtils.writeVInt(dataOut, tf);
             
+            prevDocID = key.getRightElement();
             prevTerm = term;
         }
         

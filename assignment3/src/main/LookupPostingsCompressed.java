@@ -38,17 +38,20 @@ public class LookupPostingsCompressed extends Configured implements Tool {
     private LookupPostingsCompressed() {}
 
     private static ArrayListWritable<PairOfInts> deserializePosting(BytesWritable inputBytes) {
+        
         ArrayListWritable<PairOfInts> posting = new ArrayListWritable<PairOfInts>();
-
         DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(inputBytes.getBytes()));
-
+        int prevDocID = 0;
+        
         try {
             while (true) {
                 int left = WritableUtils.readVInt(dataIn);
                 int right = WritableUtils.readVInt(dataIn);
 
-                if (right != 0) 
-                    posting.add(new PairOfInts(left, right));
+                if (right != 0) {
+                    posting.add(new PairOfInts(left+prevDocID, right));
+                    prevDocID += left;
+                }
             }
         }
         catch (EOFException e){}

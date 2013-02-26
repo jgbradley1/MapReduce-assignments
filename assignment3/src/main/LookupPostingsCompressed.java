@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -13,6 +14,7 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -21,20 +23,50 @@ import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-import cern.colt.Arrays;
 import edu.umd.cloud9.io.array.ArrayListWritable;
 import edu.umd.cloud9.io.pair.PairOfInts;
 import edu.umd.cloud9.util.fd.Int2IntFrequencyDistribution;
 import edu.umd.cloud9.util.fd.Int2IntFrequencyDistributionEntry;
 
-public class LookupPostingsCompressed {
+public class LookupPostingsCompressed extends Configured implements Tool {
     private static final String INDEX = "index";
     private static final String COLLECTION = "collection";
 
+    private LookupPostingsCompressed() {}
+
+    private static ArrayListWritable<PairOfInts> deserializePosting(BytesWritable inputBytes) {
+        ArrayListWritable<PairOfInts> posting = new ArrayListWritable<PairOfInts>();
+
+        DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(inputBytes.getBytes()));
+
+        try {
+            while (true) {
+                int left = WritableUtils.readVInt(dataIn);
+                int right = WritableUtils.readVInt(dataIn);
+
+                if (right != 0) 
+                    posting.add(new PairOfInts(left, right));
+            }
+        }
+        catch (EOFException e){}
+        catch (IOException e) {}
+
+        try {
+            dataIn.close();
+        } catch (IOException e) {}
+
+        return posting;
+    }
+
+
+    /**
+     * Runs this tool.
+     */
     @SuppressWarnings({ "static-access" })
-    public static void main(String[] args) throws IOException {
+    public int run(String[] args) throws Exception {
         Options options = new Options();
 
         options.addOption(OptionBuilder.withArgName("path").hasArg()
@@ -122,7 +154,7 @@ public class LookupPostingsCompressed {
         for (PairOfInts pair : postings) {
             silverHist.increment(pair.getRightElement());
         }
-
+        
         System.out.println("histogram of tf values for silver");
         for (PairOfInts pair : silverHist) {
             System.out.println(pair.getLeftElement() + "\t" + pair.getRightElement());
@@ -138,30 +170,14 @@ public class LookupPostingsCompressed {
         
         collection.close();
         reader.close();
+        
+        return 0;
     }
-    
-    
-    private static ArrayListWritable<PairOfInts> deserializePosting(BytesWritable inputBytes) {
-        ArrayListWritable<PairOfInts> posting = new ArrayListWritable<PairOfInts>();
-        
-        DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(inputBytes.getBytes()));
-        
-        try {
-            while (true) {
-                int left = WritableUtils.readVInt(dataIn);
-                int right = WritableUtils.readVInt(dataIn);
-                
-                if (right != 0) 
-                    posting.add(new PairOfInts(left, right));
-            }
-        }
-        catch (EOFException e){}
-        catch (IOException e) {}
-        
-        try {
-            dataIn.close();
-        } catch (IOException e) {}
-        
-        return posting;
+
+    /**
+     * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
+     */
+    public static void main(String[] args) throws Exception {
+        ToolRunner.run(new LookupPostingsCompressed(), args);
     }
 }

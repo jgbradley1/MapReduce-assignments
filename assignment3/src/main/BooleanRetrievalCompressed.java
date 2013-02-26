@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
@@ -16,6 +17,7 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -23,25 +25,26 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-
-import cern.colt.Arrays;
 
 import edu.umd.cloud9.io.array.ArrayListWritable;
 import edu.umd.cloud9.io.pair.PairOfInts;
 
-public class BooleanRetrievalCompressed {
-    private final MapFile.Reader index;
-    private final FSDataInputStream collection;
-    private final Stack<Set<Integer>> stack;
+public class BooleanRetrievalCompressed extends Configured implements Tool {
+    private MapFile.Reader index;
+    private FSDataInputStream collection;
+    private Stack<Set<Integer>> stack;
 
-    public BooleanRetrievalCompressed(String indexPath, String collectionPath, FileSystem fs) throws IOException {
+    private BooleanRetrievalCompressed() {}
+
+    private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
         index = new MapFile.Reader(new Path(indexPath + "/part-r-00000"), fs.getConf());
         collection = fs.open(new Path(collectionPath));
         stack = new Stack<Set<Integer>>();
     }
 
-    public void runQuery(String q) throws IOException {
+    private void runQuery(String q) throws IOException {
         String[] terms = q.split("\\s+");
 
         for (String t : terms) {
@@ -62,16 +65,16 @@ public class BooleanRetrievalCompressed {
         }
     }
 
-    public void pushTerm(String term) throws IOException {
+    private void pushTerm(String term) throws IOException {
         stack.push(fetchDocumentSet(term));
     }
 
-    public void performAND() {
+    private void performAND() {
         Set<Integer> s1 = stack.pop();
         Set<Integer> s2 = stack.pop();
 
         Set<Integer> sn = new TreeSet<Integer>();
-        
+
         for (int n : s1) {
             if (s2.contains(n)) {
                 sn.add(n);
@@ -81,7 +84,7 @@ public class BooleanRetrievalCompressed {
         stack.push(sn);
     }
 
-    public void performOR() {
+    private void performOR() {
         Set<Integer> s1 = stack.pop();
         Set<Integer> s2 = stack.pop();
 
@@ -98,28 +101,27 @@ public class BooleanRetrievalCompressed {
         stack.push(sn);
     }
 
-    public Set<Integer> fetchDocumentSet(String term) throws IOException {
+    private Set<Integer> fetchDocumentSet(String term) throws IOException {
         Set<Integer> set = new TreeSet<Integer>();
-        
+
         for (PairOfInts pair : fetchPostings(term)) {
             set.add(pair.getLeftElement());
         }
-        
+
         return set;
     }
-    
-    
-    public ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
+
+    private ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
         Text key = new Text();
         BytesWritable bytesValue = new BytesWritable();
-        
+
         key.set(term);
         index.get(key, bytesValue);
 
         return deserializePosting(bytesValue);
     }
 
-    public String fetchLine(long offset) throws IOException {
+    private String fetchLine(long offset) throws IOException {
         collection.seek(offset);
         BufferedReader reader = new BufferedReader(new InputStreamReader(collection));
 
@@ -129,8 +131,11 @@ public class BooleanRetrievalCompressed {
     private static final String INDEX = "index";
     private static final String COLLECTION = "collection";
 
+    /**
+     * Runs this tool.
+     */
     @SuppressWarnings({ "static-access" })
-    public static void main(String[] args) throws IOException {
+    public int run(String[] args) throws Exception {
         Options options = new Options();
 
         options.addOption(OptionBuilder.withArgName("path").hasArg()
@@ -152,7 +157,7 @@ public class BooleanRetrievalCompressed {
             System.out.println("args: " + Arrays.toString(args));
             HelpFormatter formatter = new HelpFormatter();
             formatter.setWidth(120);
-            formatter.printHelp(LookupPostingsCompressed.class.getName(), options);
+            formatter.printHelp(LookupPostings.class.getName(), options);
             ToolRunner.printGenericCommandUsage(System.out);
             System.exit(-1);
         }
@@ -167,7 +172,7 @@ public class BooleanRetrievalCompressed {
 
         FileSystem fs = FileSystem.get(new Configuration());
 
-        BooleanRetrievalCompressed s = new BooleanRetrievalCompressed(indexPath, collectionPath, fs);
+        initialize(indexPath, collectionPath, fs);
 
         String[] queries = { "outrageous fortune AND", "white rose AND", "means deceit AND",
                 "white red OR rose AND pluck AND", "unhappy outrageous OR good your AND OR fortune AND" };
@@ -175,32 +180,43 @@ public class BooleanRetrievalCompressed {
         for (String q : queries) {
             System.out.println("Query: " + q);
 
-            s.runQuery(q);
+            runQuery(q);
             System.out.println("");
         }
+
+        return 1;
     }
+    
     
     private static ArrayListWritable<PairOfInts> deserializePosting(BytesWritable inputBytes) {
         ArrayListWritable<PairOfInts> posting = new ArrayListWritable<PairOfInts>();
-        
+
         DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(inputBytes.getBytes()));
-        
+
         try {
             while (true) {
                 int left = WritableUtils.readVInt(dataIn);
                 int right = WritableUtils.readVInt(dataIn);
-                
+
                 if (right != 0) 
                     posting.add(new PairOfInts(left, right));
             }
         }
         catch (EOFException e){}
         catch (IOException e) {}
-        
+
         try {
             dataIn.close();
         } catch (IOException e) {}
-        
+
         return posting;
+    }
+    
+    
+    /**
+     * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
+     */
+    public static void main(String[] args) throws Exception {
+        ToolRunner.run(new BooleanRetrievalCompressed(), args);
     }
 }

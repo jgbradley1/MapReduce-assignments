@@ -45,7 +45,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
     // Mapper: emits (term, tf) for every word in the document.
     private static class MyMapper extends Mapper<LongWritable, Text, PairOfStringInt, VIntWritable> {
-        private static final Text WORD = new Text();
+        
         private static final Object2IntFrequencyDistribution<String> COUNTS =
                 new Object2IntFrequencyDistributionEntry<String>();
         private static final PairOfStringInt KEY = new PairOfStringInt();
@@ -93,8 +93,6 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     Reducer<PairOfStringInt, VIntWritable, Text, BytesWritable> {
         
         private static final Text KEY = new Text();
-        private static final VIntWritable DF = new VIntWritable();
-        //private static final ArrayListWritable<PairOfVInts> POSTINGS = new ArrayListWritable<PairOfVInts>();
         private static final BytesWritable POSTINGS = new BytesWritable();
         private static String prevTerm = "";
         private static String term = "";
@@ -208,7 +206,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         // Delete the output directory if it exists already.
         Path outputDir = new Path(outputPath);
         FileSystem.get(conf).delete(outputDir, true);
-
+        
         long startTime = System.currentTimeMillis();
         job.waitForCompletion(true);
         LOG.info("Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");

@@ -39,7 +39,7 @@ import edu.umd.cloud9.util.map.MapIF;
 
 /**
  * <p>
- * Main driver program for running the basic (non-Schimmy) implementation of
+ * Main driver program for running the personalized implementation of
  * PageRank.
  * </p>
  *
@@ -51,13 +51,10 @@ import edu.umd.cloud9.util.map.MapIF;
  * <code>/base/path/iter0000</code>; final results will be stored at
  * <code>/base/path/iter0010</code>.
  * </p>
- *
- * @see RunPageRankSchimmy
- * @author Jimmy Lin
- * @author Michael Schatz
+ * @author Joshua Bradley
  */
-public class RunPageRankBasic extends Configured implements Tool {
-  private static final Logger LOG = Logger.getLogger(RunPageRankBasic.class);
+public class RunPersonalizedPageRankBasic extends Configured implements Tool {
+  private static final Logger LOG = Logger.getLogger(RunPersonalizedPageRankBasic.class);
 
   private static enum PageRank {
     nodes, edges, massMessages, massMessagesSaved, massMessagesReceived, missingStructure
@@ -340,10 +337,10 @@ public class RunPageRankBasic extends Configured implements Tool {
 	 * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
 	 */
 	public static void main(String[] args) throws Exception {
-		ToolRunner.run(new RunPageRankBasic(), args);
+		ToolRunner.run(new RunPersonalizedPageRankBasic(), args);
 	}
 
-	public RunPageRankBasic() {}
+	public RunPersonalizedPageRankBasic() {}
 
   private static final String BASE = "base";
   private static final String NUM_NODES = "numNodes";
@@ -437,7 +434,7 @@ public class RunPageRankBasic extends Configured implements Tool {
       boolean useCombiner, boolean useInMapperCombiner) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase1");
-    job.setJarByClass(RunPageRankBasic.class);
+    job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
     String in = basePath + "/iter" + formatter.format(i);
     String out = basePath + "/iter" + formatter.format(j) + "t";
@@ -510,7 +507,7 @@ public class RunPageRankBasic extends Configured implements Tool {
   private void phase2(int i, int j, float missing, String basePath, int numNodes) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
-    job.setJarByClass(RunPageRankBasic.class);
+    job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
     LOG.info("missing PageRank mass: " + missing);
     LOG.info("number of nodes: " + numNodes);

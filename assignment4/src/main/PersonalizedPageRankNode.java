@@ -16,7 +16,7 @@ import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
  * @author Jimmy Lin
  * @author Michael Schatz
  */
-public class PageRankNode implements Writable {
+public class PersonalizedPageRankNode implements Writable {
     public static enum Type {
         Complete((byte) 0),  // PageRank mass and adjacency list.
         Mass((byte) 1),      // PageRank mass only.
@@ -36,7 +36,7 @@ public class PageRankNode implements Writable {
     private float pagerank;
     private ArrayListOfIntsWritable adjacenyList;
 
-    public PageRankNode() {}
+    public PersonalizedPageRankNode() {}
 
     public float getPageRank() {
         return pagerank;
@@ -144,8 +144,8 @@ public class PageRankNode implements Writable {
      * @return newly-created object
      * @throws IOException
      */
-    public static PageRankNode create(DataInput in) throws IOException {
-        PageRankNode m = new PageRankNode();
+    public static PersonalizedPageRankNode create(DataInput in) throws IOException {
+        PersonalizedPageRankNode m = new PersonalizedPageRankNode();
         m.readFields(in);
 
         return m;
@@ -158,7 +158,7 @@ public class PageRankNode implements Writable {
      * @return newly-created object
      * @throws IOException
      */
-    public static PageRankNode create(byte[] bytes) throws IOException {
+    public static PersonalizedPageRankNode create(byte[] bytes) throws IOException {
         return create(new DataInputStream(new ByteArrayInputStream(bytes)));
     }
 }

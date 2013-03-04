@@ -62,23 +62,23 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   // Mapper, no in-mapper combining.
   private static class MapClass extends
-      Mapper<IntWritable, PageRankNode, IntWritable, PageRankNode> {
+      Mapper<IntWritable, PersonalizedPageRankNode, IntWritable, PersonalizedPageRankNode> {
 
     // The neighbor to which we're sending messages.
     private static final IntWritable neighbor = new IntWritable();
 
     // Contents of the messages: partial PageRank mass.
-    private static final PageRankNode intermediateMass = new PageRankNode();
+    private static final PersonalizedPageRankNode intermediateMass = new PersonalizedPageRankNode();
 
     // For passing along node structure.
-    private static final PageRankNode intermediateStructure = new PageRankNode();
+    private static final PersonalizedPageRankNode intermediateStructure = new PersonalizedPageRankNode();
 
     @Override
-    public void map(IntWritable nid, PageRankNode node, Context context)
+    public void map(IntWritable nid, PersonalizedPageRankNode node, Context context)
         throws IOException, InterruptedException {
       // Pass along node structure.
       intermediateStructure.setNodeId(node.getNodeId());
-      intermediateStructure.setType(PageRankNode.Type.Structure);
+      intermediateStructure.setType(PersonalizedPageRankNode.Type.Structure);
       intermediateStructure.setAdjacencyList(node.getAdjacenyList());
 
       context.write(nid, intermediateStructure);
@@ -97,7 +97,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         for (int i = 0; i < list.size(); i++) {
           neighbor.set(list.get(i));
           intermediateMass.setNodeId(list.get(i));
-          intermediateMass.setType(PageRankNode.Type.Mass);
+          intermediateMass.setType(PersonalizedPageRankNode.Type.Mass);
           intermediateMass.setPageRank(mass);
 
           // Emit messages with PageRank mass to neighbors.
@@ -114,19 +114,19 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   // Mapper with in-mapper combiner optimization.
   private static class MapWithInMapperCombiningClass extends
-      Mapper<IntWritable, PageRankNode, IntWritable, PageRankNode> {
+      Mapper<IntWritable, PersonalizedPageRankNode, IntWritable, PersonalizedPageRankNode> {
     // For buffering PageRank mass contributes keyed by destination node.
     private static final HMapIF map = new HMapIF();
 
     // For passing along node structure.
-    private static final PageRankNode intermediateStructure = new PageRankNode();
+    private static final PersonalizedPageRankNode intermediateStructure = new PersonalizedPageRankNode();
 
     @Override
-    public void map(IntWritable nid, PageRankNode node, Context context)
+    public void map(IntWritable nid, PersonalizedPageRankNode node, Context context)
         throws IOException, InterruptedException {
       // Pass along node structure.
       intermediateStructure.setNodeId(node.getNodeId());
-      intermediateStructure.setType(PageRankNode.Type.Structure);
+      intermediateStructure.setType(PersonalizedPageRankNode.Type.Structure);
       intermediateStructure.setAdjacencyList(node.getAdjacenyList());
 
       context.write(nid, intermediateStructure);
@@ -168,13 +168,13 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     public void cleanup(Context context) throws IOException, InterruptedException {
       // Now emit the messages all at once.
       IntWritable k = new IntWritable();
-      PageRankNode mass = new PageRankNode();
+      PersonalizedPageRankNode mass = new PersonalizedPageRankNode();
 
       for (MapIF.Entry e : map.entrySet()) {
         k.set(e.getKey());
 
         mass.setNodeId(e.getKey());
-        mass.setType(PageRankNode.Type.Mass);
+        mass.setType(PersonalizedPageRankNode.Type.Mass);
         mass.setPageRank(e.getValue());
 
         context.write(k, mass);
@@ -184,18 +184,18 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   // Combiner: sums partial PageRank contributions and passes node structure along.
   private static class CombineClass extends
-      Reducer<IntWritable, PageRankNode, IntWritable, PageRankNode> {
-    private static final PageRankNode intermediateMass = new PageRankNode();
+      Reducer<IntWritable, PersonalizedPageRankNode, IntWritable, PersonalizedPageRankNode> {
+    private static final PersonalizedPageRankNode intermediateMass = new PersonalizedPageRankNode();
 
     @Override
-    public void reduce(IntWritable nid, Iterable<PageRankNode> values, Context context)
+    public void reduce(IntWritable nid, Iterable<PersonalizedPageRankNode> values, Context context)
         throws IOException, InterruptedException {
       int massMessages = 0;
 
       // Remember, PageRank mass is stored as a log prob.
       float mass = Float.NEGATIVE_INFINITY;
-      for (PageRankNode n : values) {
-        if (n.getType() == PageRankNode.Type.Structure) {
+      for (PersonalizedPageRankNode n : values) {
+        if (n.getType() == PersonalizedPageRankNode.Type.Structure) {
           // Simply pass along node structure.
           context.write(nid, n);
         } else {
@@ -208,7 +208,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       // Emit aggregated results.
       if (massMessages > 0) {
         intermediateMass.setNodeId(nid.get());
-        intermediateMass.setType(PageRankNode.Type.Mass);
+        intermediateMass.setType(PersonalizedPageRankNode.Type.Mass);
         intermediateMass.setPageRank(mass);
 
         context.write(nid, intermediateMass);
@@ -218,20 +218,20 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   // Reduce: sums incoming PageRank contributions, rewrite graph structure.
   private static class ReduceClass extends
-      Reducer<IntWritable, PageRankNode, IntWritable, PageRankNode> {
+      Reducer<IntWritable, PersonalizedPageRankNode, IntWritable, PersonalizedPageRankNode> {
     // For keeping track of PageRank mass encountered, so we can compute missing PageRank mass lost
     // through dangling nodes.
     private float totalMass = Float.NEGATIVE_INFINITY;
 
     @Override
-    public void reduce(IntWritable nid, Iterable<PageRankNode> iterable, Context context)
+    public void reduce(IntWritable nid, Iterable<PersonalizedPageRankNode> iterable, Context context)
         throws IOException, InterruptedException {
-      Iterator<PageRankNode> values = iterable.iterator();
+      Iterator<PersonalizedPageRankNode> values = iterable.iterator();
 
       // Create the node structure that we're going to assemble back together from shuffled pieces.
-      PageRankNode node = new PageRankNode();
+      PersonalizedPageRankNode node = new PersonalizedPageRankNode();
 
-      node.setType(PageRankNode.Type.Complete);
+      node.setType(PersonalizedPageRankNode.Type.Complete);
       node.setNodeId(nid.get());
 
       int massMessagesReceived = 0;
@@ -239,9 +239,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       float mass = Float.NEGATIVE_INFINITY;
       while (values.hasNext()) {
-        PageRankNode n = values.next();
+        PersonalizedPageRankNode n = values.next();
 
-        if (n.getType().equals(PageRankNode.Type.Structure)) {
+        if (n.getType().equals(PersonalizedPageRankNode.Type.Structure)) {
           // This is the structure; update accordingly.
           ArrayListOfIntsWritable list = n.getAdjacenyList();
           structureReceived++;
@@ -301,7 +301,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
   // Mapper that distributes the missing PageRank mass (lost at the dangling nodes) and takes care
   // of the random jump factor.
   private static class MapPageRankMassDistributionClass extends
-      Mapper<IntWritable, PageRankNode, IntWritable, PageRankNode> {
+      Mapper<IntWritable, PersonalizedPageRankNode, IntWritable, PersonalizedPageRankNode> {
     private float missingMass = 0.0f;
     private int nodeCnt = 0;
 
@@ -314,7 +314,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     }
 
     @Override
-    public void map(IntWritable nid, PageRankNode node, Context context)
+    public void map(IntWritable nid, PersonalizedPageRankNode node, Context context)
         throws IOException, InterruptedException {
       float p = node.getPageRank();
 
@@ -473,10 +473,10 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
     job.setMapOutputKeyClass(IntWritable.class);
-    job.setMapOutputValueClass(PageRankNode.class);
+    job.setMapOutputValueClass(PersonalizedPageRankNode.class);
 
     job.setOutputKeyClass(IntWritable.class);
-    job.setOutputValueClass(PageRankNode.class);
+    job.setOutputValueClass(PersonalizedPageRankNode.class);
 
     job.setMapperClass(useInMapperCombiner ? MapWithInMapperCombiningClass.class : MapClass.class);
 
@@ -533,10 +533,10 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
     job.setMapOutputKeyClass(IntWritable.class);
-    job.setMapOutputValueClass(PageRankNode.class);
+    job.setMapOutputValueClass(PersonalizedPageRankNode.class);
 
     job.setOutputKeyClass(IntWritable.class);
-    job.setOutputValueClass(PageRankNode.class);
+    job.setOutputValueClass(PersonalizedPageRankNode.class);
 
     job.setMapperClass(MapPageRankMassDistributionClass.class);
 

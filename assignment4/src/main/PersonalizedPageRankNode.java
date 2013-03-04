@@ -11,10 +11,9 @@ import org.apache.hadoop.io.Writable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
 
 /**
- * Representation of a graph node for PageRank. 
+ * Representation of a graph node for Personalized PageRank. 
  *
- * @author Jimmy Lin
- * @author Michael Schatz
+ * @author Joshua Bradley
  */
 public class PersonalizedPageRankNode implements Writable {
     public static enum Type {
@@ -35,6 +34,7 @@ public class PersonalizedPageRankNode implements Writable {
     private int nodeid;
     private float pagerank;
     private ArrayListOfIntsWritable adjacenyList;
+    private ArrayListOfIntsWritable personalizedPageRankValues;
 
     public PersonalizedPageRankNode() {}
 
@@ -44,6 +44,14 @@ public class PersonalizedPageRankNode implements Writable {
 
     public void setPageRank(float p) {
         this.pagerank = p;
+    }
+    
+    public ArrayListOfIntsWritable getPersonalizedPageRankValues() {
+        return personalizedPageRankValues;
+    }
+    
+    public void setPersonalizedPageRankValues(ArrayListOfIntsWritable list) {
+        this.personalizedPageRankValues = list;
     }
 
     public int getNodeId() {
@@ -92,6 +100,9 @@ public class PersonalizedPageRankNode implements Writable {
 
         adjacenyList = new ArrayListOfIntsWritable();
         adjacenyList.readFields(in);
+        
+        personalizedPageRankValues = new ArrayListOfIntsWritable();
+        personalizedPageRankValues.readFields(in);
     }
 
     /**
@@ -114,12 +125,16 @@ public class PersonalizedPageRankNode implements Writable {
         }
 
         adjacenyList.write(out);
+        personalizedPageRankValues.write(out);
     }
 
     @Override
     public String toString() {
-        return String.format("{%d %.4f %s}",
-                nodeid, pagerank, (adjacenyList == null ? "[]" : adjacenyList.toString(10)));
+        return String.format("{%d %.4f %s %s}",
+                nodeid,
+                pagerank,
+                (adjacenyList == null ? "[]" : adjacenyList.toString(10)),
+                (personalizedPageRankValues == null ? "[]" : personalizedPageRankValues.toString(10)));
     }
 
 

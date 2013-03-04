@@ -66,7 +66,6 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
             if (arr.length == 1) {
                 node.setNodeId(Integer.parseInt(arr[0]));
                 node.setAdjacencyList(new ArrayListOfIntsWritable());
-                
             } else {
                 node.setNodeId(Integer.parseInt(arr[0]));
                 
@@ -79,7 +78,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
             }
             
             /*
-             *  Assign node an initial PageRank value
+             *  Assign node an initial PageRank value of
              *  +1 if node is a source node
              *  0 otherwise
              */

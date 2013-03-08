@@ -8,6 +8,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Writable;
 
+import edu.umd.cloud9.io.array.ArrayListOfFloatsWritable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
 
 /**
@@ -27,31 +28,31 @@ public class PersonalizedPageRankNode implements Writable {
             this.val = v;
         }
     };
-    
+
     private static final Type[] mapping = new Type[] { Type.Complete, Type.Mass, Type.Structure };
-    
+
     private Type type;
     private int nodeid;
-    private float pagerank;
     private ArrayListOfIntsWritable adjacenyList;
-    private ArrayListOfIntsWritable personalizedPageRankValues;
+    private ArrayListOfFloatsWritable sourceList;
 
     public PersonalizedPageRankNode() {}
 
-    public float getPageRank() {
-        return pagerank;
+    public ArrayListOfFloatsWritable getsourceList() {
+        return sourceList;
     }
 
-    public void setPageRank(float p) {
-        this.pagerank = p;
+    public void setsourceList(ArrayListOfFloatsWritable list) {
+        this.sourceList = list;
     }
-    
-    public ArrayListOfIntsWritable getPersonalizedPageRankValues() {
-        return personalizedPageRankValues;
+
+    public float getPageRank(int index) {
+        return sourceList.get(index);
     }
-    
-    public void setPersonalizedPageRankValues(ArrayListOfIntsWritable list) {
-        this.personalizedPageRankValues = list;
+
+    public void setPageRank(int index, float value) {
+        if (index < this.sourceList.size())
+            this.sourceList.set(index,  value);
     }
 
     public int getNodeId() {
@@ -88,21 +89,19 @@ public class PersonalizedPageRankNode implements Writable {
         int b = in.readByte();
         type = mapping[b];
         nodeid = in.readInt();
+        sourceList = new ArrayListOfFloatsWritable();
 
         if (type.equals(Type.Mass)) {
-            pagerank = in.readFloat();
+            sourceList.readFields(in);
             return;
         }
 
         if (type.equals(Type.Complete)) {
-            pagerank = in.readFloat();
+            sourceList.readFields(in);
         }
 
         adjacenyList = new ArrayListOfIntsWritable();
         adjacenyList.readFields(in);
-        
-        personalizedPageRankValues = new ArrayListOfIntsWritable();
-        personalizedPageRankValues.readFields(in);
     }
 
     /**
@@ -116,25 +115,23 @@ public class PersonalizedPageRankNode implements Writable {
         out.writeInt(nodeid);
 
         if (type.equals(Type.Mass)) {
-            out.writeFloat(pagerank);
+            sourceList.write(out);
             return;
         }
 
         if (type.equals(Type.Complete)) {
-            out.writeFloat(pagerank);
+            sourceList.write(out);
         }
 
         adjacenyList.write(out);
-        personalizedPageRankValues.write(out);
     }
 
     @Override
     public String toString() {
         return String.format("{%d %.4f %s %s}",
                 nodeid,
-                pagerank,
-                (adjacenyList == null ? "[]" : adjacenyList.toString(10)),
-                (personalizedPageRankValues == null ? "[]" : personalizedPageRankValues.toString(10)));
+                (sourceList == null ? "[]" : sourceList.toString(10)),
+                (adjacenyList == null ? "[]" : adjacenyList.toString(this.adjacenyList.size())));
     }
 
 

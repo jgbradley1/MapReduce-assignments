@@ -28,6 +28,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
+import edu.umd.cloud9.io.array.ArrayListOfFloatsWritable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
 
 /**
@@ -49,6 +50,13 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         @Override
         public void setup(Mapper<LongWritable, Text, IntWritable, PersonalizedPageRankNode>.Context context) {
             int n = context.getConfiguration().getInt(NODE_CNT_FIELD, 0);
+            String sources = context.getConfiguration().get(SOURCES);
+            String[] sourceList = sources.split(",");
+            
+            for (int i = 0; i < sourceList.length; i++) {
+                SOURCELIST.add(Integer.parseInt(sourceList[i]));
+            }
+            
             if (n == 0) {
                 throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
             }
@@ -61,14 +69,12 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
             String[] arr = t.toString().trim().split("\\s+");
             
             nid.set(Integer.parseInt(arr[0]));
+            node.setNodeId(Integer.parseInt(arr[0]));
             
             // check if node is a dangling node
             if (arr.length == 1) {
-                node.setNodeId(Integer.parseInt(arr[0]));
                 node.setAdjacencyList(new ArrayListOfIntsWritable());
             } else {
-                node.setNodeId(Integer.parseInt(arr[0]));
-                
                 int[] neighbors = new int[arr.length - 1];
                 for (int i = 1; i < arr.length; i++) {
                     neighbors[i - 1] = Integer.parseInt(arr[i]);
@@ -82,10 +88,11 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
              *  +1 if node is a source node
              *  0 otherwise
              */
+            node.setsourceList(new ArrayListOfFloatsWritable(3));
             if (SOURCELIST.contains(node.getNodeId())) {
-                node.setPageRank(1.0f);
+                node.setPageRank(0, 1.0f);
             } else {
-                node.setPageRank(0.0f);
+                node.setPageRank(0, 0.0f);
             }
             
             context.getCounter("graph", "numNodes").increment(1);
@@ -95,11 +102,11 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
                 context.getCounter("graph", "numActiveNodes").increment(1);
             }
             
-            System.out.println("\n\nPrinting Source List");
+            System.out.print("\n\nPrinting Source List");
             for (int i = 0; i < SOURCELIST.size(); i++) {
                 System.out.println(SOURCELIST.get(i));
             }
-            System.out.println("\n\n");
+            System.out.print("\n\n");
             
             context.write(nid, node);
         }
@@ -153,12 +160,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         String inputPath = cmdline.getOptionValue(INPUT);
         String outputPath = cmdline.getOptionValue(OUTPUT);
         int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
-        
-        String[] sources = (cmdline.getOptionValues(SOURCES))[0].split(",");
-        int[] sourceList = new int[sources.length];
-        for (int i = 0; i < sources.length; i++) {
-                SOURCELIST.add(sourceList[i]);
-        }
+        String sources = cmdline.getOptionValues(SOURCES)[0];
         
         LOG.info("Tool name: " + BuildPersonalizedPageRankRecords.class.getSimpleName());
         LOG.info(" - inputDir: " + inputPath);
@@ -167,6 +169,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         
         Configuration conf = getConf();
         conf.setInt(NODE_CNT_FIELD, n);
+        conf.set(SOURCES, sources);
         conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
         
         Job job = Job.getInstance(conf);

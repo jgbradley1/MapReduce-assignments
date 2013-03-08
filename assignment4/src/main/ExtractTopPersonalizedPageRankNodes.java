@@ -45,7 +45,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
         @Override
         public void map(IntWritable nid, PersonalizedPageRankNode node, Context context) throws IOException,
         InterruptedException {
-            queue.add(node.getNodeId(), node.getPageRank());
+            queue.add(node.getNodeId(), node.getPageRank(0));
         }
         
         @Override

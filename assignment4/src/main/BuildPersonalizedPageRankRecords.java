@@ -62,7 +62,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
                 throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
             }
             node.setType(PersonalizedPageRankNode.Type.Complete);
-            node.setPageRank(0, (float) -StrictMath.log(n));
+            //node.setPageRank(0, (float) -StrictMath.log(n));
         }
         
         @Override
@@ -91,7 +91,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
              *  +1 if node is a source node
              *  0 otherwise
              */
-            /*
+            
             if (SOURCELIST.contains(node.getNodeId())) {
                 //node.setPageRank(0, 1.0f);
                 node.setPageRank(0, (float)-StrictMath.log(n));
@@ -99,7 +99,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
                 //node.setPageRank(0, 0.0f);
                 node.setPageRank(0, (float)-StrictMath.log(n));
             }
-            */
+            
             context.getCounter("graph", "numNodes").increment(1);
             context.getCounter("graph", "numEdges").increment(arr.length - 1);
             
@@ -181,9 +181,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
         
         job.setInputFormatClass(TextInputFormat.class);
-        
-        job.setOutputFormatClass(TextOutputFormat.class);
-        //job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
         
         job.setMapOutputKeyClass(IntWritable.class);
         job.setMapOutputValueClass(PersonalizedPageRankNode.class);

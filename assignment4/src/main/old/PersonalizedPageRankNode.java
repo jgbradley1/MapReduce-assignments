@@ -1,3 +1,5 @@
+package old;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
@@ -10,6 +12,7 @@ import org.apache.hadoop.io.Writable;
 
 import edu.umd.cloud9.io.array.ArrayListOfFloatsWritable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
+import edu.umd.cloud9.io.map.HMapIFW;
 
 /**
  * Representation of a graph node for Personalized PageRank. 
@@ -34,25 +37,28 @@ public class PersonalizedPageRankNode implements Writable {
     private Type type;
     private int nodeid;
     private ArrayListOfIntsWritable adjacenyList;
-    private ArrayListOfFloatsWritable sourceList;
+    private HMapIFW sourceList;
 
-    public PersonalizedPageRankNode() {}
+    public PersonalizedPageRankNode() {
+        sourceList = new HMapIFW();
+    }
 
-    public ArrayListOfFloatsWritable getsourceList() {
+    public HMapIFW getsourceList() {
         return sourceList;
     }
 
-    public void setsourceList(ArrayListOfFloatsWritable list) {
+    public void setsourceList(HMapIFW list) {
         this.sourceList = list;
     }
 
-    public float getPageRank(int index) {
-        return sourceList.get(index);
+    public float getPageRank(int nodeID) {
+        return sourceList.get(nodeID);
     }
 
-    public void setPageRank(int index, float value) {
-        if (index < this.sourceList.size())
-            this.sourceList.set(index,  value);
+    public void setPageRank(int nodeID, float value) {
+        if (this.sourceList.containsKey(nodeID)) {
+            this.sourceList.put(nodeID,  value);
+        }
     }
 
     public int getNodeId() {
@@ -89,7 +95,7 @@ public class PersonalizedPageRankNode implements Writable {
         int b = in.readByte();
         type = mapping[b];
         nodeid = in.readInt();
-        sourceList = new ArrayListOfFloatsWritable();
+        sourceList = new HMapIFW();
 
         if (type.equals(Type.Mass)) {
             sourceList.readFields(in);
@@ -128,9 +134,9 @@ public class PersonalizedPageRankNode implements Writable {
 
     @Override
     public String toString() {
-        return String.format("{%d %.4f %s %s}",
+        return String.format("{%d %s %s}",
                 nodeid,
-                (sourceList == null ? "[]" : sourceList.toString(10)),
+                (sourceList == null ? "[]" : sourceList.toString()),
                 (adjacenyList == null ? "[]" : adjacenyList.toString(this.adjacenyList.size())));
     }
 

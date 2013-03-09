@@ -39,81 +39,81 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
 public class DumpPageRankRecordsToPlainText extends Configured implements Tool {
-    private static final Logger LOG = Logger.getLogger(DumpPageRankRecordsToPlainText.class);
+  private static final Logger LOG = Logger.getLogger(DumpPageRankRecordsToPlainText.class);
 
-    public DumpPageRankRecordsToPlainText() {}
+  public DumpPageRankRecordsToPlainText() {}
 
-    private static final String INPUT = "input";
-    private static final String OUTPUT = "output";
+  private static final String INPUT = "input";
+  private static final String OUTPUT = "output";
 
-    /**
-     * Runs this tool.
-     */
-    @SuppressWarnings({ "static-access" })
-    public int run(String[] args) throws Exception {
-        Options options = new Options();
+  /**
+   * Runs this tool.
+   */
+  @SuppressWarnings({ "static-access" })
+  public int run(String[] args) throws Exception {
+    Options options = new Options();
 
-        options.addOption(OptionBuilder.withArgName("path").hasArg()
-                .withDescription("input path").create(INPUT));
-        options.addOption(OptionBuilder.withArgName("path").hasArg()
-                .withDescription("output path").create(OUTPUT));
+    options.addOption(OptionBuilder.withArgName("path").hasArg()
+        .withDescription("input path").create(INPUT));
+    options.addOption(OptionBuilder.withArgName("path").hasArg()
+        .withDescription("output path").create(OUTPUT));
 
-        CommandLine cmdline;
-        CommandLineParser parser = new GnuParser();
+    CommandLine cmdline;
+    CommandLineParser parser = new GnuParser();
 
-        try {
-            cmdline = parser.parse(options, args);
-        } catch (ParseException exp) {
-            System.err.println("Error parsing command line: " + exp.getMessage());
-            return -1;
-        }
-
-        if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT)) {
-            System.out.println("args: " + Arrays.toString(args));
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.setWidth(120);
-            formatter.printHelp(this.getClass().getName(), options);
-            ToolRunner.printGenericCommandUsage(System.out);
-            return -1;
-        }
-
-        String inputPath = cmdline.getOptionValue(INPUT);
-        String outputPath = cmdline.getOptionValue(OUTPUT);
-
-        LOG.info("Tool name: " + DumpPageRankRecordsToPlainText.class.getSimpleName());
-        LOG.info(" - input: " + inputPath);
-        LOG.info(" - output: " + outputPath);
-
-        Configuration conf = new Configuration();
-        conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
-
-        Job job = Job.getInstance(conf);
-        job.setJobName(DumpPageRankRecordsToPlainText.class.getSimpleName());
-        job.setJarByClass(DumpPageRankRecordsToPlainText.class);
-
-        job.setNumReduceTasks(0);
-
-        FileInputFormat.addInputPath(job, new Path(inputPath));
-        FileOutputFormat.setOutputPath(job, new Path(outputPath));
-
-        job.setInputFormatClass(SequenceFileInputFormat.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
-
-        job.setMapOutputKeyClass(IntWritable.class);
-        job.setMapOutputValueClass(PageRankNode.class);
-
-        // Delete the output directory if it exists already.
-        FileSystem.get(conf).delete(new Path(outputPath), true);
-
-        job.waitForCompletion(true);
-
-        return 0;
+    try {
+      cmdline = parser.parse(options, args);
+    } catch (ParseException exp) {
+      System.err.println("Error parsing command line: " + exp.getMessage());
+      return -1;
     }
 
-    /**
-     * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
-     */
-    public static void main(String[] args) throws Exception {
-        ToolRunner.run(new DumpPageRankRecordsToPlainText(), args);
+    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT)) {
+      System.out.println("args: " + Arrays.toString(args));
+      HelpFormatter formatter = new HelpFormatter();
+      formatter.setWidth(120);
+      formatter.printHelp(this.getClass().getName(), options);
+      ToolRunner.printGenericCommandUsage(System.out);
+      return -1;
     }
+
+    String inputPath = cmdline.getOptionValue(INPUT);
+    String outputPath = cmdline.getOptionValue(OUTPUT);
+
+    LOG.info("Tool name: " + DumpPageRankRecordsToPlainText.class.getSimpleName());
+    LOG.info(" - input: " + inputPath);
+    LOG.info(" - output: " + outputPath);
+
+    Configuration conf = new Configuration();
+    conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
+
+    Job job = Job.getInstance(conf);
+    job.setJobName(DumpPageRankRecordsToPlainText.class.getSimpleName());
+    job.setJarByClass(DumpPageRankRecordsToPlainText.class);
+
+    job.setNumReduceTasks(0);
+
+    FileInputFormat.addInputPath(job, new Path(inputPath));
+    FileOutputFormat.setOutputPath(job, new Path(outputPath));
+
+    job.setInputFormatClass(SequenceFileInputFormat.class);
+    job.setOutputFormatClass(TextOutputFormat.class);
+
+    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputValueClass(PageRankNode.class);
+
+    // Delete the output directory if it exists already.
+    FileSystem.get(conf).delete(new Path(outputPath), true);
+
+    job.waitForCompletion(true);
+
+    return 0;
+  }
+
+  /**
+   * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
+   */
+  public static void main(String[] args) throws Exception {
+    ToolRunner.run(new DumpPageRankRecordsToPlainText(), args);
+  }
 }

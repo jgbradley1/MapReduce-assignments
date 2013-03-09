@@ -1,3 +1,4 @@
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -61,12 +63,14 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
                 throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
             }
             node.setType(PersonalizedPageRankNode.Type.Complete);
+            node.setPageRank(0, (float) -StrictMath.log(n));
         }
         
         @Override
         public void map(LongWritable key, Text t, Context context) throws IOException,
         InterruptedException {
             String[] arr = t.toString().trim().split("\\s+");
+            int n = context.getConfiguration().getInt(NODE_CNT_FIELD, 0);
             
             nid.set(Integer.parseInt(arr[0]));
             node.setNodeId(Integer.parseInt(arr[0]));
@@ -88,25 +92,21 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
              *  +1 if node is a source node
              *  0 otherwise
              */
-            node.setsourceList(new ArrayListOfFloatsWritable(3));
+            /*
             if (SOURCELIST.contains(node.getNodeId())) {
-                node.setPageRank(0, 1.0f);
+                //node.setPageRank(0, 1.0f);
+                node.setPageRank(0, (float)-StrictMath.log(n));
             } else {
-                node.setPageRank(0, 0.0f);
+                //node.setPageRank(0, 0.0f);
+                node.setPageRank(0, (float)-StrictMath.log(n));
             }
-            
+            */
             context.getCounter("graph", "numNodes").increment(1);
             context.getCounter("graph", "numEdges").increment(arr.length - 1);
             
             if (arr.length > 1) {
                 context.getCounter("graph", "numActiveNodes").increment(1);
             }
-            
-            System.out.print("\n\nPrinting Source List");
-            for (int i = 0; i < SOURCELIST.size(); i++) {
-                System.out.println(SOURCELIST.get(i));
-            }
-            System.out.print("\n\n");
             
             context.write(nid, node);
         }
@@ -182,7 +182,9 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
         
         job.setInputFormatClass(TextInputFormat.class);
-        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        
+        job.setOutputFormatClass(TextOutputFormat.class);
+        //job.setOutputFormatClass(SequenceFileOutputFormat.class);
         
         job.setMapOutputKeyClass(IntWritable.class);
         job.setMapOutputValueClass(PersonalizedPageRankNode.class);

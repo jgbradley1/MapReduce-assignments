@@ -13,7 +13,7 @@
  * implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-package old;
+
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -46,11 +46,11 @@ import org.apache.log4j.Logger;
 import edu.umd.cloud9.util.TopNScoredObjects;
 import edu.umd.cloud9.util.pair.PairOfObjectFloat;
 
-public class ExtractTopPersonalizedPageRankNodes extends Configured implements Tool {
-  private static final Logger LOG = Logger.getLogger(ExtractTopPersonalizedPageRankNodes.class);
+public class FindMaxPageRankNodes extends Configured implements Tool {
+  private static final Logger LOG = Logger.getLogger(FindMaxPageRankNodes.class);
 
   private static class MyMapper extends
-      Mapper<IntWritable, PersonalizedPageRankNode, IntWritable, FloatWritable> {
+      Mapper<IntWritable, PageRankNode, IntWritable, FloatWritable> {
     private TopNScoredObjects<Integer> queue;
 
     @Override
@@ -60,9 +60,9 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     }
 
     @Override
-    public void map(IntWritable nid, PersonalizedPageRankNode node, Context context) throws IOException,
+    public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
         InterruptedException {
-      queue.add(node.getNodeId(), node.getPageRank(0));
+      queue.add(node.getNodeId(), node.getPageRank());
     }
 
     @Override
@@ -113,7 +113,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     }
   }
 
-  public ExtractTopPersonalizedPageRankNodes() {
+  public FindMaxPageRankNodes() {
   }
 
   private static final String INPUT = "input";
@@ -157,7 +157,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(TOP));
 
-    LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
+    LOG.info("Tool name: " + FindMaxPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
     LOG.info(" - output: " + outputPath);
     LOG.info(" - top: " + n);
@@ -167,8 +167,8 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     conf.setInt("n", n);
 
     Job job = Job.getInstance(conf);
-    job.setJobName(ExtractTopPersonalizedPageRankNodes.class.getName() + ":" + inputPath);
-    job.setJarByClass(ExtractTopPersonalizedPageRankNodes.class);
+    job.setJobName(FindMaxPageRankNodes.class.getName() + ":" + inputPath);
+    job.setJarByClass(FindMaxPageRankNodes.class);
 
     job.setNumReduceTasks(1);
 
@@ -199,7 +199,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
    */
   public static void main(String[] args) throws Exception {
-    int res = ToolRunner.run(new ExtractTopPersonalizedPageRankNodes(), args);
+    int res = ToolRunner.run(new FindMaxPageRankNodes(), args);
     System.exit(res);
   }
 }

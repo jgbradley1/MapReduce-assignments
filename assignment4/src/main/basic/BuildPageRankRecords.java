@@ -38,6 +38,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -167,7 +168,7 @@ public class BuildPageRankRecords extends Configured implements Tool {
 
     job.setInputFormatClass(TextInputFormat.class);
     job.setOutputFormatClass(SequenceFileOutputFormat.class);
-
+    
     job.setMapOutputKeyClass(IntWritable.class);
     job.setMapOutputValueClass(PageRankNode.class);
 

@@ -8,6 +8,8 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Writable;
 
+import basic.PageRankNode.Type;
+
 import edu.umd.cloud9.io.array.ArrayListOfFloatsWritable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
 import edu.umd.cloud9.io.map.HMapIFW;
@@ -35,32 +37,25 @@ public class PersonalizedPageRankNode implements Writable {
     private Type type;
     private int nodeid;
     private ArrayListOfIntsWritable adjacenyList;
-    private HMapIFW sourceList;
+    private ArrayListOfFloatsWritable listOfPageRankValues;    // list of pagerank values, each with respect to a source node
 
     public PersonalizedPageRankNode() {
-        sourceList = new HMapIFW();
+        listOfPageRankValues = new ArrayListOfFloatsWritable();
     }
 
-    public HMapIFW getsourceList() {
-        return sourceList;
+    public float getPageRank(int index) {
+        return this.listOfPageRankValues.get(index);
     }
 
-    public void setsourceList(HMapIFW list) {
-        this.sourceList = list;
-    }
-
-    public float getPageRank(int nodeID) {
-        return sourceList.get(nodeID);
-    }
-
-    public void setPageRank(int nodeID, float value) {
-        if (this.sourceList.containsKey(nodeID)) {
-            this.sourceList.put(nodeID,  value);
-        }
+    public void setPageRank(int index, float value) {
+        if (index < listOfPageRankValues.size())
+            this.listOfPageRankValues.set(index,  value);
+        else
+            this.listOfPageRankValues.add(index, value);
     }
 
     public int getNodeId() {
-        return nodeid;
+        return this.nodeid;
     }
 
     public void setNodeId(int n) {
@@ -68,7 +63,7 @@ public class PersonalizedPageRankNode implements Writable {
     }
 
     public ArrayListOfIntsWritable getAdjacenyList() {
-        return adjacenyList;
+        return this.adjacenyList;
     }
 
     public void setAdjacencyList(ArrayListOfIntsWritable list) {
@@ -76,7 +71,7 @@ public class PersonalizedPageRankNode implements Writable {
     }
 
     public Type getType() {
-        return type;
+        return this.type;
     }
 
     public void setType(Type type) {
@@ -93,17 +88,18 @@ public class PersonalizedPageRankNode implements Writable {
         int b = in.readByte();
         type = mapping[b];
         nodeid = in.readInt();
-        sourceList = new HMapIFW();
-
+        
         if (type.equals(Type.Mass)) {
-            sourceList.readFields(in);
+            this.listOfPageRankValues = new ArrayListOfFloatsWritable();
+            this.listOfPageRankValues.readFields(in);
             return;
         }
 
         if (type.equals(Type.Complete)) {
-            sourceList.readFields(in);
+            this.listOfPageRankValues = new ArrayListOfFloatsWritable();
+            this.listOfPageRankValues.readFields(in);
         }
-
+        
         adjacenyList = new ArrayListOfIntsWritable();
         adjacenyList.readFields(in);
     }
@@ -117,16 +113,16 @@ public class PersonalizedPageRankNode implements Writable {
     public void write(DataOutput out) throws IOException {
         out.writeByte(type.val);
         out.writeInt(nodeid);
-
+        
         if (type.equals(Type.Mass)) {
-            sourceList.write(out);
+            this.listOfPageRankValues.write(out);
             return;
         }
 
         if (type.equals(Type.Complete)) {
-            sourceList.write(out);
+            this.listOfPageRankValues.write(out);
         }
-
+        
         adjacenyList.write(out);
     }
 
@@ -134,7 +130,7 @@ public class PersonalizedPageRankNode implements Writable {
     public String toString() {
         return String.format("{%d %s %s}",
                 nodeid,
-                (sourceList == null ? "[]" : sourceList.toString()),
+                (listOfPageRankValues == null ? "[]" : listOfPageRankValues.toString()),
                 (adjacenyList == null ? "[]" : adjacenyList.toString(this.adjacenyList.size())));
     }
 

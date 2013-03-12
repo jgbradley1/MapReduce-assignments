@@ -62,14 +62,12 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
                 throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
             }
             node.setType(PersonalizedPageRankNode.Type.Complete);
-            //node.setPageRank(0, (float) -StrictMath.log(n));
         }
         
         @Override
         public void map(LongWritable key, Text t, Context context) throws IOException,
         InterruptedException {
             String[] arr = t.toString().trim().split("\\s+");
-            int n = context.getConfiguration().getInt(NODE_CNT_FIELD, 0);
             
             nid.set(Integer.parseInt(arr[0]));
             node.setNodeId(Integer.parseInt(arr[0]));
@@ -91,13 +89,12 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
              *  +1 if node is a source node
              *  0 otherwise
              */
-            
-            if (SOURCELIST.contains(node.getNodeId())) {
-                //node.setPageRank(0, 1.0f);
-                node.setPageRank(0, (float)-StrictMath.log(n));
-            } else {
-                //node.setPageRank(0, 0.0f);
-                node.setPageRank(0, (float)-StrictMath.log(n));
+            for (int i=0; i<SOURCELIST.size(); i++) {
+                if (SOURCELIST.get(i) == node.getNodeId()) {
+                    node.setPageRank(i, (float)StrictMath.log(1.0));
+                } else {
+                    node.setPageRank(i, Float.NEGATIVE_INFINITY);
+                }
             }
             
             context.getCounter("graph", "numNodes").increment(1);

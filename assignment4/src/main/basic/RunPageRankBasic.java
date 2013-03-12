@@ -277,7 +277,7 @@ public class RunPageRankBasic extends Configured implements Tool {
       // Update the final accumulated PageRank mass.
       node.setPageRank(mass);
       context.getCounter(PageRank.massMessagesReceived).increment(massMessagesReceived);
-
+      
       // Error checking.
       if (structureReceived == 1) {
         // Everything checks out, emit final node structure with updated PageRank value.
@@ -339,8 +339,7 @@ public class RunPageRankBasic extends Configured implements Tool {
       float p = node.getPageRank();
 
       float jump = (float) (Math.log(ALPHA) - Math.log(nodeCnt));
-      float link = (float) Math.log(1.0f - ALPHA)
-          + sumLogProbs(p, (float) (Math.log(missingMass) - Math.log(nodeCnt)));
+      float link = (float) Math.log(1.0f - ALPHA) + sumLogProbs(p, (float) (Math.log(missingMass) - Math.log(nodeCnt)));
 
       p = sumLogProbs(jump, link);
       node.setPageRank(p);

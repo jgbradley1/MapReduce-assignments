@@ -4,7 +4,7 @@ Assignment 4 - Josh Bradley
 <li>
 I was able to complete the assignment. Below are results for the two sources you asked for.
 <br><br>Source: 9470136
-
+<pre>
 1.  0.38857 9470136
 2.  0.09418 7992850
 3.  0.08586 7891871
@@ -15,9 +15,10 @@ I was able to complete the assignment. Below are results for the two sources you
 8.  0.03183 8669492
 9.  0.02246 7970234
 10.  0.01693 8846238
+</pre>
 
 <br>Source: 9300650
-
+<pre>
 1.  0.44688 9300650
 2.  0.09108 10765057
 3.  0.08888 9074395
@@ -28,6 +29,6 @@ I was able to complete the assignment. Below are results for the two sources you
 8.  0.01511 9785148
 9.  0.01511 8846237
 10.  0.01511 11890488
-
+</pre>
 </li>
 </ul>

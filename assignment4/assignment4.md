@@ -3,8 +3,7 @@ Assignment 4 - Josh Bradley
 <ul>
 <li>
 I was able to complete the assignment. Below are results for the two sources you asked for.
-<blockquote>
-Source: 9470136
+<br><br>Source: 9470136
 
 1.  0.38857 9470136
 2.  0.09418 7992850
@@ -17,10 +16,7 @@ Source: 9470136
 9.  0.02246 7970234
 10.  0.01693 8846238
 
-</blockquote>
-
-<blockquote>
-Source: 9300650
+<br>Source: 9300650
 
 1.  0.44688 9300650
 2.  0.09108 10765057
@@ -32,8 +28,6 @@ Source: 9300650
 8.  0.01511 9785148
 9.  0.01511 8846237
 10.  0.01511 11890488
-
-</blockquote>
 
 </li>
 </ul>

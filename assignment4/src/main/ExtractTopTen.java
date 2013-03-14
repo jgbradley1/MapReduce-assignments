@@ -101,7 +101,7 @@ public class ExtractTopTen extends Configured implements Tool {
             int nodeid = sourceList.get(i);
             String result1 = String.format("%s %d", source, nodeid);
             stringBuilder.append(result1 + "\n");
-
+            
             for (PairOfObjectFloat<Integer> pair : queues.get(i).extractAll()) {
                 String keyString = pair.getLeftElement().toString();
                 

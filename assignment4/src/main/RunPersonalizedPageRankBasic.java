@@ -494,7 +494,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
         job.setInputFormatClass(NonSplitableSequenceFileInputFormat.class);
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
-        //job.setOutputFormatClass(TextOutputFormat.class);
 
         job.setMapOutputKeyClass(IntWritable.class);
         job.setMapOutputValueClass(PersonalizedPageRankNode.class);
@@ -566,7 +565,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
         job.setInputFormatClass(NonSplitableSequenceFileInputFormat.class);
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
-        //job.setOutputFormatClass(TextOutputFormat.class);
 
         job.setMapOutputKeyClass(IntWritable.class);
         job.setMapOutputValueClass(PersonalizedPageRankNode.class);

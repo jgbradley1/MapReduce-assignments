@@ -65,7 +65,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
         @Override
         public void map(IntWritable nid, PersonalizedPageRankNode node, Context context) throws IOException,
         InterruptedException {
-
+            
             // loop through for all source nodes
             for (int i=0; i<sources.size(); i++) {
                 queues.get(i).add(node.getNodeId(), node.getPageRank(i));
@@ -125,7 +125,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
                 .withDescription("top n").create(TOP));
         options.addOption(OptionBuilder.withArgName("num").hasArg()
                 .withDescription("source nodes").create(SOURCES));
-
+        
         CommandLine cmdline;
         CommandLineParser parser = new GnuParser();
 

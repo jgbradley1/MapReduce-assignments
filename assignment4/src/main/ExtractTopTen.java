@@ -85,8 +85,6 @@ public class ExtractTopTen extends Configured implements Tool {
         for (PairOfWritables<IntWritable, PersonalizedPageRankNode> prResult : PageRankResults) {
             // the IntWritable is the nodeID, however this information is also available in the PersonalizedPageRankNode so we don't use the IntWritable
             
-            //System.out.println(prResult.getLeftElement() + "\t" + prResult.getRightElement());
-             
             PersonalizedPageRankNode node = prResult.getRightElement();
             // loop through for all source nodes
             for (int i=0; i<sourceList.size(); i++) {
@@ -123,7 +121,7 @@ public class ExtractTopTen extends Configured implements Tool {
         System.out.println(stringBuilder.toString());
         return 0;
     }
-
+    
     /**
      * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
      */

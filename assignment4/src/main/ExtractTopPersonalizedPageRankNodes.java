@@ -1,8 +1,6 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -18,7 +16,6 @@ import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -27,7 +24,6 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
-import edu.umd.cloud9.io.pair.PairOfIntFloat;
 import edu.umd.cloud9.io.pair.PairOfInts;
 import edu.umd.cloud9.util.TopNScoredObjects;
 import edu.umd.cloud9.util.pair.PairOfObjectFloat;
@@ -108,7 +104,6 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     private static final String OUTPUT = "output";
     private static final String TOP = "top";
     private static final String SOURCES = "sources";
-    private static Configuration conf;
 
     /**
      * Runs this tool.

@@ -8,11 +8,8 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Writable;
 
-import basic.PageRankNode.Type;
-
 import edu.umd.cloud9.io.array.ArrayListOfFloatsWritable;
 import edu.umd.cloud9.io.array.ArrayListOfIntsWritable;
-import edu.umd.cloud9.io.map.HMapIFW;
 
 /**
  * Representation of a graph node for Personalized PageRank. 

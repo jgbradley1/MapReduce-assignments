@@ -77,8 +77,6 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
             queues.add(new TopNScoredObjects<Integer>(top));
         }
         
-        
-        
         List<PairOfWritables<IntWritable, PersonalizedPageRankNode>> PageRankResults =
                 SequenceFileUtils.readDirectory(new Path(indexPath));
         

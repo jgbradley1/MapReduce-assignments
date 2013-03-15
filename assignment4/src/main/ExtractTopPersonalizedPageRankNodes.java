@@ -86,6 +86,8 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
             // the IntWritable is the nodeID, however this information is also available in the PersonalizedPageRankNode so we don't use the IntWritable
             
             PersonalizedPageRankNode node = prResult.getRightElement();
+            System.out.println(node);
+            
             // loop through for all source nodes
             for (int i=0; i<sourceList.size(); i++) {
                 queues.get(i).add(node.getNodeId(), node.getPageRank(i));

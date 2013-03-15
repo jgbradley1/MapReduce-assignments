@@ -67,6 +67,7 @@ public class ExtractTopTen extends Configured implements Tool {
         public void map(IntWritable nid, PersonalizedPageRankNode node, Context context) throws IOException,
         InterruptedException {
             
+            System.out.println(node);
             // loop through for all source nodes
             for (int i=0; i<sources.size(); i++) {
                 queues.get(i).add(node.getNodeId(), node.getPageRank(i));
@@ -197,7 +198,7 @@ public class ExtractTopTen extends Configured implements Tool {
     public static void main(String[] args) throws Exception {
         int res = ToolRunner.run(new ExtractTopTen(), args);
 
-        LOG.info(stringBuilder.toString());
+        LOG.info("\n\nRESULTS\n\n" + stringBuilder.toString());
         System.exit(res);
     }
 }

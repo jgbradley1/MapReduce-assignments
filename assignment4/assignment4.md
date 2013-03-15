@@ -32,3 +32,13 @@ I was able to complete the assignment. Below are results for the two sources you
 </pre>
 </li>
 </ul>
+
+Grading
+=======
+
+Everything looks correct and I was able to run your code without any
+problems. Great work!
+
+Score: 35/35
+
+-Jimmy

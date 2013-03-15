@@ -80,7 +80,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
         
         
         List<PairOfWritables<IntWritable, PersonalizedPageRankNode>> PageRankResults =
-                SequenceFileUtils.readDirectory(new Path(indexPath + "/part-m-00000"));
+                SequenceFileUtils.readDirectory(new Path(indexPath));
         
         for (PairOfWritables<IntWritable, PersonalizedPageRankNode> prResult : PageRankResults) {
             // the IntWritable is the nodeID, however this information is also available in the PersonalizedPageRankNode so we don't use the IntWritable

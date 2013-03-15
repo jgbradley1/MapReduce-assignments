@@ -191,7 +191,7 @@ public class ExtractTopTen extends Configured implements Tool {
 
         return 0;
     }
-
+    
     /**
      * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
      */

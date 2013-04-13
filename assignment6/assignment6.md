@@ -2,7 +2,7 @@ Assignment 6 - Josh Bradley
 ====================
 <ul>
 <li>
-I was able to complete the assignment. Use the 
+I was able to complete the assignment.
 ```printf()```
 function.
 

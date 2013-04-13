@@ -3,8 +3,6 @@ Assignment 6 - Josh Bradley
 <ul>
 <li>
 I was able to complete the assignment.
-```printf()```
-function.
 
 <br><br>Pig Script - Analysis #1
 <pre>

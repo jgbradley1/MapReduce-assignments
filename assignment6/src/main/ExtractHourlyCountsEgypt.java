@@ -143,7 +143,7 @@ public class ExtractHourlyCountsEgypt extends Configured implements Tool {
         }
 
         // Set default values
-        String inputPath = "sampledata.txt";
+        String inputPath = "/user/shared/tweets2011/tweets2011.txt";
         String outputPath = "jgbradley1-egypt";
         int reduceTasks = 1;
 

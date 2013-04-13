@@ -137,7 +137,7 @@ public class ExtractHourlyCountsAll extends Configured implements Tool {
         }
 
         // Set default values
-        String inputPath = "sampledata.txt";
+        String inputPath = "/user/shared/tweets2011/tweets2011.txt";
         String outputPath = "jgbradley1-all";
         int reduceTasks = 1;
 

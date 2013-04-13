@@ -21,8 +21,8 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
-public class ExtractHourlyCountsAll extends Configured implements Tool {
-    private static final Logger LOG = Logger.getLogger(ExtractHourlyCountsAll.class);
+public class ExtractHourlyCountsEgypt extends Configured implements Tool {
+    private static final Logger LOG = Logger.getLogger(ExtractHourlyCountsEgypt.class);
 
     // Mapper: emits (token, 1) for every word occurrence.
     private static class MyMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
@@ -36,36 +36,42 @@ public class ExtractHourlyCountsAll extends Configured implements Tool {
                 throws IOException, InterruptedException {
             String line = ((Text) value).toString();
             String lineContents[] = line.split("\t");
+            // make sure line isn't empty
             if (lineContents.length > 1) {
-
-                String timestamp[] = lineContents[1].split(" ");
-
-                /*
-                 * timestamp[0] - day of the week (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
-                 * timestamp[1] - month of the year (Jan, Feb, Mar, Apr, May, Jun, etc.)
-                 * timestamp[2] - day of the month (numerical)
-                 * timestamp[3] - time in format hh:mm:ss
-                 * timestamp[4...6] - information not necessary for calculations
-                 */
                 
-                String tmp = "";
-
-                if (timestamp[1].equals("Jan") || timestamp[1].equals("Feb")) {
-                    if (timestamp[1].equals("Jan")) {
-                        tmp = "1/";
-                    }
-                    else {
-                        tmp = "2/";
-                    }
+                // only continue if tweet message mentions "egypt" or "cairo"
+                String message = lineContents[3];
+                if (message.matches(".*([Ee][Gg][Yy][Pp][Tt]|[Cc][Aa][Ii][Rr][Oo]).*")) {
                     
-                    tmp += timestamp[2];
-                    String time[] = timestamp[3].split(":");
-                    tmp += "\t" + time[0];
+                    String timestamp[] = lineContents[1].split(" ");
+                    
+                    /*
+                     * timestamp[0] - day of the week (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
+                     * timestamp[1] - month of the year (Jan, Feb, Mar, Apr, May, Jun, etc.)
+                     * timestamp[2] - day of the month (numerical)
+                     * timestamp[3] - time in format hh:mm:ss
+                     * timestamp[4...6] - information not necessary for calculations
+                     */
+                    
+                    String tmp = "";
 
-                    System.out.println(tmp);
-                    KEY.set(tmp);
+                    if (timestamp[1].equals("Jan") || timestamp[1].equals("Feb")) {
+                        if (timestamp[1].equals("Jan")) {
+                            tmp = "1/";
+                        }
+                        else {
+                            tmp = "2/";
+                        }
+                        
+                        tmp += timestamp[2];
+                        String time[] = timestamp[3].split(":");
+                        tmp += "\t" + time[0];
 
-                    context.write(KEY,  VALUE);
+                        System.out.println(tmp);
+                        KEY.set(tmp);
+
+                        context.write(KEY,  VALUE);
+                    }
                 }
             }
             else {
@@ -117,7 +123,7 @@ public class ExtractHourlyCountsAll extends Configured implements Tool {
     /**
      * Creates an instance of this tool.
      */
-    public ExtractHourlyCountsAll() {}
+    public ExtractHourlyCountsEgypt() {}
 
     /**
      * Runs this tool.
@@ -138,18 +144,18 @@ public class ExtractHourlyCountsAll extends Configured implements Tool {
 
         // Set default values
         String inputPath = "sampledata.txt";
-        String outputPath = "jgbradley1-all";
+        String outputPath = "jgbradley1-egypt";
         int reduceTasks = 1;
 
-        LOG.info("Tool: " + ExtractHourlyCountsAll.class.getSimpleName());
+        LOG.info("Tool: " + ExtractHourlyCountsEgypt.class.getSimpleName());
         LOG.info(" - input path: " + inputPath);
         LOG.info(" - output path: " + outputPath);
         LOG.info(" - number of reducers: " + reduceTasks);
 
         Configuration conf = getConf();
         Job job = Job.getInstance(conf);
-        job.setJobName(ExtractHourlyCountsAll.class.getSimpleName());
-        job.setJarByClass(ExtractHourlyCountsAll.class);
+        job.setJobName(ExtractHourlyCountsEgypt.class.getSimpleName());
+        job.setJarByClass(ExtractHourlyCountsEgypt.class);
 
         job.setNumReduceTasks(reduceTasks);
 
@@ -180,6 +186,6 @@ public class ExtractHourlyCountsAll extends Configured implements Tool {
      * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
      */
     public static void main(String[] args) throws Exception {
-        ToolRunner.run(new ExtractHourlyCountsAll(), args);
+        ToolRunner.run(new ExtractHourlyCountsEgypt(), args);
     }
 }

@@ -57,3 +57,11 @@ store G into 'hourly-counts-egypt-cairo.txt';
 </li>
 </ul>
 
+Grading
+=======
+
+Everything looks great!
+
+Score: 25/25
+
+-Jimmy
